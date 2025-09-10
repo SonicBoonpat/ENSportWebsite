@@ -1,103 +1,215 @@
-import Image from "next/image";
+'use client';
+
+import { useState } from 'react';
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [email, setEmail] = useState('');
+  const [sortBy, setSortBy] = useState('date');
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+  const matches = [
+    {
+      id: 1,
+      date: '25 Dec 2025',
+      time: '18:00 - 19:30',
+      sport: 'Football',
+      teams: 'COE vs DME',
+      location: 'สนาม 50 ปี มข.'
+    },
+    {
+      id: 2,
+      date: '27 Dec 2025',
+      time: '14:00 - 16:00',
+      sport: 'Badminton',
+      teams: 'EN vs CP',
+      location: 'อาคารกีฬาเอนก'
+    },
+    {
+      id: 3,
+      date: '2 Feb 2026',
+      time: '10:00 - 12:00',
+      sport: 'Sepak Takraw',
+      teams: 'EN vs MD',
+      location: 'สนาม 50 ปี มข.'
+    },
+    {
+      id: 4,
+      date: '17 Feb 2026',
+      time: '11:00 - 14:00',
+      sport: 'Chess Board',
+      teams: 'EN vs SC',
+      location: 'คิณะวิศวกรรม'
+    },
+    {
+      id: 5,
+      date: '20 Feb 2026',
+      time: '9:00 - 10:30',
+      sport: 'Table Tennis',
+      teams: 'ENVI vs ARIS',
+      location: 'สนาม 50 ปี มข.'
+    }
+  ];
+
+  const handleSubscribe = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Handle subscription logic here
+    alert('Subscribed successfully!');
+    setEmail('');
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-10">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+        }} />
+      </div>
+
+      <div className="relative z-10 max-w-md mx-auto px-4 py-6 md:max-w-2xl lg:max-w-4xl">
+        {/* Header */}
+        <header className="text-center mb-8">
+          <div className="bg-red-600 rounded-lg px-6 py-4 mb-6 shadow-lg">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-wider">EN SPORT</h1>
+          </div>
+        </header>
+
+        {/* Hero Section - Flaming Basketball */}
+        <section className="text-center mb-8">
+          <div className="bg-gradient-to-r from-gray-800 to-gray-900 rounded-lg p-6 mb-6 border border-gray-700 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2 rounded-lg font-bold text-lg">
+                EN
+              </div>
+              <div className="text-center flex-1">
+                <div className="text-orange-500 font-bold text-lg mb-2">🔥 FLAMING</div>
+                <div className="text-orange-400 font-bold text-xl">🏀 BASKETBALL</div>
+                <div className="text-gray-400 text-sm mt-1">2024 • 2025</div>
+              </div>
+              <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-4 py-2 rounded-lg font-bold text-lg">
+                CS
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Time Table Section */}
+        <section className="mb-8">
+          <div className="bg-red-600 rounded-lg px-6 py-4 mb-4 shadow-lg">
+            <h2 className="text-xl md:text-2xl font-bold text-center">Time Table</h2>
+          </div>
+
+          {/* Search and Sort */}
+          <div className="flex flex-col md:flex-row gap-3 mb-4">
+            <div className="flex-1">
+              <input
+                type="text"
+                placeholder="Search..."
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
+              />
+            </div>
+            <div className="md:w-32">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
+              >
+                <option value="date">Sort: Date</option>
+                <option value="sport">Sort: Sport</option>
+                <option value="location">Sort: Location</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Table Header */}
+          <div className="bg-red-700 rounded-t-lg px-4 py-3">
+            <div className="grid grid-cols-3 gap-4 text-center font-semibold">
+              <div>Time</div>
+              <div>Matches</div>
+              <div>Location</div>
+            </div>
+          </div>
+
+          {/* Table Content */}
+          <div className="bg-gray-800 rounded-b-lg divide-y divide-gray-700">
+            {matches.map((match, index) => (
+              <div key={match.id} className={`px-4 py-4 hover:bg-gray-700 transition-colors ${
+                index % 2 === 0 ? 'bg-red-900/30' : 'bg-red-800/20'
+              }`}>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+                  <div className="text-center md:text-left">
+                    <div className="font-semibold text-white">{match.date}</div>
+                    <div className="text-gray-300 text-sm">{match.time}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-gray-300 text-sm">{match.sport}</div>
+                    <div className="font-semibold text-white">{match.teams}</div>
+                  </div>
+                  <div className="text-center md:text-right">
+                    <div className="text-blue-400 hover:text-blue-300 cursor-pointer underline text-sm">
+                      {match.location}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Newsletter Subscription */}
+        <section className="mb-8">
+          <div className="bg-red-600 rounded-lg px-6 py-6 shadow-lg">
+            <h3 className="text-xl font-bold text-center mb-4">Get Sport EN Updates</h3>
+            <p className="text-center text-red-100 mb-6 text-sm">
+              Subscribe to receive match reminders and news by email.
+            </p>
+            
+            <form onSubmit={handleSubscribe} className="space-y-4">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium mb-2">
+                  Email:
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="example@email.com"
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/60 focus:outline-none focus:border-white/40 focus:ring-1 focus:ring-white/40"
+                  required
+                />
+              </div>
+              
+              <button
+                type="submit"
+                className="w-full bg-red-800 hover:bg-red-900 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-400"
+              >
+                subscription
+              </button>
+            </form>
+            
+            <p className="text-center text-xs text-red-100 mt-4">
+              By subscribing, you agree to receive emails from Sport EN.<br />
+              You can unsubscribe anytime.
+            </p>
+          </div>
+        </section>
+
+        {/* Footer */}
+        <footer className="text-center text-gray-400 text-xs space-y-2">
+          <div className="flex justify-center space-x-4 mb-4">
+            <a href="#" className="hover:text-white transition-colors">Contact Us</a>
+            <span>•</span>
+            <a href="#" className="hover:text-white transition-colors">About</a>
+          </div>
+          
+          <div className="space-y-1">
+            <div>@ IG</div>
+            <div>For contact</div>
+            <div>GE2667B8 Creative Thinking and Problem Solving</div>
+            <div>Copyright © All right reserve 2024 Group 6 Section 6</div>
+          </div>
+        </footer>
+      </div>
     </div>
   );
 }
