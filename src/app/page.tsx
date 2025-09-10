@@ -82,7 +82,8 @@ export default function Home() {
               </div>
               <div className="text-center flex-1">
                 <div className="text-orange-400 font-bold text-xl">🏀 BASKETBALL</div>
-                <div className="text-gray-400 text-sm mt-1">2024 • 2025</div>
+                <div className="text-gray-400 text-sm mt-1">2 Febuary 2026</div>
+                <div className="text-gray-400 text-sm mt-1">16.00 - 18.00น.</div>
               </div>
               <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-4 py-2 rounded-lg font-bold text-lg">
                 CS
