@@ -81,7 +81,6 @@ export default function Home() {
                 EN
               </div>
               <div className="text-center flex-1">
-                <div className="text-orange-500 font-bold text-lg mb-2">🔥 FLAMING</div>
                 <div className="text-orange-400 font-bold text-xl">🏀 BASKETBALL</div>
                 <div className="text-gray-400 text-sm mt-1">2024 • 2025</div>
               </div>
@@ -205,8 +204,8 @@ export default function Home() {
           <div className="space-y-1">
             <div>@ IG</div>
             <div>For contact</div>
-            <div>GE2667B8 Creative Thinking and Problem Solving</div>
-            <div>Copyright © All right reserve 2024 Group 6 Section 6</div>
+            <div>GE362785 Creative Thinking and Problem Solving</div>
+            <div>Copyright © All right reserve 2024 Group 2 Section 4</div>
           </div>
         </footer>
       </div>
