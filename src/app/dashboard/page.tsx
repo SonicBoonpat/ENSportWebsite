@@ -5,11 +5,8 @@ import { useRouter } from 'next/navigation';
 
 interface User {
   id: string;
-  email: string;
   username: string;
   role: string;
-  firstName?: string;
-  lastName?: string;
 }
 
 export default function DashboardPage() {
@@ -32,11 +29,8 @@ export default function DashboardPage() {
       // In production, you should verify the token with your backend
       const mockUser: User = {
         id: decoded.userId || '1',
-        email: 'admin@ensport.com',
         username: 'coeadmin777Zj12G',
-        role: 'ADMIN',
-        firstName: 'Admin',
-        lastName: 'EN Sport'
+        role: 'ADMIN'
       };
       setUser(mockUser);
     } catch (error) {
@@ -90,13 +84,10 @@ export default function DashboardPage() {
 
         {/* Welcome Section */}
         <section className="bg-gray-800 rounded-lg p-6 mb-8 border border-gray-700 shadow-xl">
-          <h2 className="text-2xl font-bold mb-4 text-red-400">ยินดีต้อนรับ, {user.firstName} {user.lastName}</h2>
+          <h2 className="text-2xl font-bold mb-4 text-red-400">ยินดีต้อนรับ, {user.username}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-300">
             <div>
               <strong>Username:</strong> {user.username}
-            </div>
-            <div>
-              <strong>Email:</strong> {user.email}
             </div>
             <div>
               <strong>Role:</strong> <span className="text-red-400 font-semibold">{user.role}</span>
@@ -111,7 +102,10 @@ export default function DashboardPage() {
         <section className="mb-8">
           <h3 className="text-xl font-bold mb-4 text-red-400">การจัดการระบบ</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-red-500 transition-colors cursor-pointer">
+            <div 
+              onClick={() => router.push('/admin/users')}
+              className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-red-500 transition-colors cursor-pointer"
+            >
               <h4 className="text-lg font-semibold mb-2">จัดการผู้ใช้</h4>
               <p className="text-gray-400 text-sm">เพิ่ม แก้ไข หรือลบผู้ใช้งาน</p>
             </div>

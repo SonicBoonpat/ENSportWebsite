@@ -16,12 +16,8 @@ datasource db {
 // User model for authentication and user management
 model User {
   id          String   @id @default(cuid())
-  email       String   @unique
   username    String   @unique
   password    String
-  firstName   String?
-  lastName    String?
-  avatar      String?
   isActive    Boolean  @default(true)
   role        UserRole @default(USER)
   createdAt   DateTime @default(now())
