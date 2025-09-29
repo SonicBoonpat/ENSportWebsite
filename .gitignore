@@ -24,6 +24,9 @@
 .DS_Store
 *.pem
 
+# seed file with sensitive data
+prisma/seed.js
+
 # debug
 npm-debug.log*
 yarn-debug.log*

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { signIn, getSession } from 'next-auth/react';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -14,21 +15,29 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password }),
+      console.log('Attempting login with:', username);
+      
+      const result = await signIn('credentials', {
+        email: username, // NextAuth ใช้ field 'email' แต่เราส่ง username
+        password: password,
+        redirect: false, // ไม่ redirect อัตโนมัติ
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        // Store token in localStorage or use next-auth
-        localStorage.setItem('token', data.token);
-        router.push('/dashboard');
+      console.log('SignIn result:', result);
+
+      if (result?.ok && !result?.error) {
+        console.log('Login successful!');
+        // ใช้ router.push แทน window.location เพื่อทดสอบ
+        router.push('/');
       } else {
-        alert('การเข้าสู่ระบบไม่สำเร็จ');
+        console.error('Login failed:', result?.error);
+        let errorMessage = 'การเข้าสู่ระบบไม่สำเร็จ';
+        if (result?.error === 'CredentialsSignin') {
+          errorMessage = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+        } else if (result?.error) {
+          errorMessage = `เกิดข้อผิดพลาด: ${result.error}`;
+        }
+        alert(errorMessage);
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -44,7 +53,7 @@ export default function LoginPage() {
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: `url('/api/placeholder/1920/1080')`,
+          backgroundColor: '#1e293b', // fallback color แทน placeholder
           filter: 'brightness(0.4)'
         }}
       >

@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,159 +7,156 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// User model for authentication and user management
 model User {
-  id          String   @id @default(cuid())
-  username    String   @unique
-  password    String
-  isActive    Boolean  @default(true)
-  role        UserRole @default(USER)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  alerts      Alert[]
-  favorites   Favorite[]
+  id        String     @id @default(cuid())
+  username  String     @unique
+  isActive  Boolean    @default(true)
+  role      UserRole   @default(USER)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  password  String
+  lastLogin DateTime?
+  name      String?
+  sportType String?
+  alerts    Alert[]
+  favorites Favorite[]
 
   @@map("users")
 }
 
-// Sports categories (Football, Basketball, etc.)
 model Sport {
   id          String   @id @default(cuid())
   name        String   @unique
-  code        String   @unique // e.g., "FB" for Football, "BB" for Basketball
+  code        String   @unique
   description String?
   icon        String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  // Relations
-  teams       Team[]
-  matches     Match[]
   leagues     League[]
+  matches     Match[]
+  teams       Team[]
 
   @@map("sports")
 }
 
-// Leagues/Competitions (Premier League, Champions League, etc.)
 model League {
-  id          String   @id @default(cuid())
-  name        String
-  code        String   @unique
-  country     String?
-  season      String?
-  logo        String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  country   String?
+  season    String?
+  logo      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sportId   String
+  sport     Sport    @relation(fields: [sportId], references: [id])
+  matches   Match[]
+  teams     Team[]
 
-  // Relations
-  sportId     String
-  sport       Sport    @relation(fields: [sportId], references: [id])
-  teams       Team[]
-  matches     Match[]
-
+  @@index([sportId], map: "leagues_sportId_fkey")
   @@map("leagues")
 }
 
-// Teams
 model Team {
-  id          String   @id @default(cuid())
+  id          String     @id @default(cuid())
   name        String
-  code        String   @unique
+  code        String     @unique
   logo        String?
   country     String?
   city        String?
   founded     Int?
   website     String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
   sportId     String
-  sport       Sport     @relation(fields: [sportId], references: [id])
   leagueId    String?
-  league      League?   @relation(fields: [leagueId], references: [id])
-  
-  homeMatches Match[]   @relation("HomeTeam")
-  awayMatches Match[]   @relation("AwayTeam")
   favorites   Favorite[]
+  awayMatches Match[]    @relation("AwayTeam")
+  homeMatches Match[]    @relation("HomeTeam")
+  league      League?    @relation(fields: [leagueId], references: [id])
+  sport       Sport      @relation(fields: [sportId], references: [id])
 
+  @@index([leagueId], map: "teams_leagueId_fkey")
+  @@index([sportId], map: "teams_sportId_fkey")
   @@map("teams")
 }
 
-// Matches/Games
 model Match {
-  id            String      @id @default(cuid())
-  date          DateTime
-  venue         String?
-  round         String?
-  week          Int?
-  status        MatchStatus @default(SCHEDULED)
-  homeScore     Int?
-  awayScore     Int?
-  extraInfo     Json?       // Additional match info like statistics, events
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id         String      @id @default(cuid())
+  date       DateTime
+  timeStart  String      // เวลาเริ่ม HH:MM
+  timeEnd    String      // เวลาจบ HH:MM
+  location   String      // สถานที่
+  mapsLink   String      // Google Maps link
+  team1      String      // คณะ/สาขาที่ 1
+  team2      String      // คณะ/สาขาที่ 2
+  sportType  String      // ประเภทกีฬา (เพื่อไม่ซ้ำกับ relation)
+  venue      String?
+  round      String?
+  week       Int?
+  status     MatchStatus @default(SCHEDULED)
+  homeScore  Int?
+  awayScore  Int?
+  extraInfo  String?     @db.LongText
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  sportId    String?     // ทำให้เป็น optional
+  leagueId   String?
+  homeTeamId String?     // ทำให้เป็น optional
+  awayTeamId String?     // ทำให้เป็น optional
+  alerts     Alert[]
+  awayTeam   Team?       @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  homeTeam   Team?       @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  league     League?     @relation(fields: [leagueId], references: [id])
+  sport      Sport?      @relation(fields: [sportId], references: [id])
 
-  // Relations
-  sportId       String
-  sport         Sport       @relation(fields: [sportId], references: [id])
-  leagueId      String?
-  league        League?     @relation(fields: [leagueId], references: [id])
-  homeTeamId    String
-  homeTeam      Team        @relation("HomeTeam", fields: [homeTeamId], references: [id])
-  awayTeamId    String
-  awayTeam      Team        @relation("AwayTeam", fields: [awayTeamId], references: [id])
-  
-  alerts        Alert[]
-
+  @@index([awayTeamId], map: "matches_awayTeamId_fkey")
+  @@index([homeTeamId], map: "matches_homeTeamId_fkey")
+  @@index([leagueId], map: "matches_leagueId_fkey")
+  @@index([sportId], map: "matches_sportId_fkey")
   @@map("matches")
 }
 
-// User alerts for matches, teams, or leagues
 model Alert {
-  id          String    @id @default(cuid())
-  type        AlertType
-  isActive    Boolean   @default(true)
-  notifyBefore Int?     // Minutes before event to notify
-  message     String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id           String    @id @default(cuid())
+  type         AlertType
+  isActive     Boolean   @default(true)
+  notifyBefore Int?
+  message      String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  userId       String
+  matchId      String?
+  match        Match?    @relation(fields: [matchId], references: [id])
+  user         User      @relation(fields: [userId], references: [id])
 
-  // Relations
-  userId      String
-  user        User      @relation(fields: [userId], references: [id])
-  matchId     String?
-  match       Match?    @relation(fields: [matchId], references: [id])
-
+  @@index([matchId], map: "alerts_matchId_fkey")
+  @@index([userId], map: "alerts_userId_fkey")
   @@map("alerts")
 }
 
-// User favorites (teams, leagues)
 model Favorite {
-  id        String   @id @default(cuid())
+  id        String       @id @default(cuid())
   type      FavoriteType
-  createdAt DateTime @default(now())
-
-  // Relations
+  createdAt DateTime     @default(now())
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
   teamId    String?
-  team      Team?    @relation(fields: [teamId], references: [id])
+  team      Team?        @relation(fields: [teamId], references: [id])
+  user      User         @relation(fields: [userId], references: [id])
 
   @@unique([userId, teamId, type])
+  @@index([teamId], map: "favorites_teamId_fkey")
   @@map("favorites")
 }
 
-// Enums
 enum UserRole {
   USER
+  SPORT_MANAGER
+  EDITOR
   ADMIN
-  MODERATOR
 }
 
 enum MatchStatus {

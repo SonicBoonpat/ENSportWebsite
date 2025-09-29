@@ -1,215 +1,423 @@
 'use client';
 
-import { useState } from 'react';
+import './globals.css'
+import { useEffect, useRef, useState } from 'react'
+import { useSession, signOut } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 
-export default function Home() {
-  const [email, setEmail] = useState('');
-  const [sortBy, setSortBy] = useState('date');
+interface Match {
+  id: string;
+  date: string;
+  time: string;
+  sport: string;
+  match: string;
+  location: string;
+  url: string;
+  status: string;
+  rawDate: string;
+  rawTime: string;
+}
 
-  const matches = [
-    {
-      id: 1,
-      date: '25 Dec 2025',
-      time: '18:00 - 19:30',
-      sport: 'Football',
-      teams: 'COE vs DME',
-      location: 'สนาม 50 ปี มข.'
-    },
-    {
-      id: 2,
-      date: '27 Dec 2025',
-      time: '14:00 - 16:00',
-      sport: 'Badminton',
-      teams: 'EN vs CP',
-      location: 'อาคารกีฬาเอนก'
-    },
-    {
-      id: 3,
-      date: '2 Feb 2026',
-      time: '10:00 - 12:00',
-      sport: 'Sepak Takraw',
-      teams: 'EN vs MD',
-      location: 'สนาม 50 ปี มข.'
-    },
-    {
-      id: 4,
-      date: '17 Feb 2026',
-      time: '11:00 - 14:00',
-      sport: 'Chess Board',
-      teams: 'EN vs SC',
-      location: 'คิณะวิศวกรรม'
-    },
-    {
-      id: 5,
-      date: '20 Feb 2026',
-      time: '9:00 - 10:30',
-      sport: 'Table Tennis',
-      teams: 'ENVI vs ARIS',
-      location: 'สนาม 50 ปี มข.'
-    }
-  ];
+function App() {
+  const { data: session } = useSession();
+  const router = useRouter();
+  const [sortOpen, setSortOpen] = useState(false);
+  const [sortValue, setSortValue] = useState<'th-asc' | 'th-desc' | 'earliest' | 'latest'>('th-asc');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [filteredMatches, setFilteredMatches] = useState<Match[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const sortWrapRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  const handleSubscribe = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Handle subscription logic here
-    alert('Subscribed successfully!');
-    setEmail('');
+  function chooseSort(val: 'th-asc' | 'th-desc' | 'earliest' | 'latest') {
+    setSortValue(val);
+    setSortOpen(false);
+  }
+
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: '/login' });
   };
 
+  const handleEditSchedule = () => {
+    router.push('/edit-schedule');
+    setMenuOpen(false);
+  };
+
+  const handleEditBanner = () => {
+    // TODO: Navigate to edit banner page  
+    console.log('Edit Banner clicked');
+    setMenuOpen(false);
+  };
+
+  const handleLogs = () => {
+    // TODO: Navigate to logs page
+    console.log('Logs clicked');
+    setMenuOpen(false);
+  };
+
+  const getUserRole = () => {
+    if (!session?.user) return null;
+    const role = (session.user as any).role;
+    if (role === 'ADMIN') return 'Admin';
+    if (role === 'SPORT_MANAGER') return 'Sport Manager';
+    if (role === 'EDITOR') return 'Editor';
+    return role || null;
+  };
+
+  // โหลดข้อมูล matches จาก API
+  const loadMatches = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/matches/all');
+      if (response.ok) {
+        const data = await response.json();
+        setMatches(data.matches || []);
+        setFilteredMatches(data.matches || []);
+      } else {
+        console.error('Failed to load matches');
+      }
+    } catch (error) {
+      console.error('Error loading matches:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Effect สำหรับโหลดข้อมูลเมื่อ component mount
+  useEffect(() => {
+    loadMatches();
+  }, []);
+
+  // Effect สำหรับ search
+  useEffect(() => {
+    if (!searchTerm) {
+      setFilteredMatches(matches);
+    } else {
+      const filtered = matches.filter(match =>
+        match.sport.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        match.match.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        match.location.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredMatches(filtered);
+    }
+  }, [searchTerm, matches]);
+
+  // Effect สำหรับ sorting
+  useEffect(() => {
+    const sorted = [...filteredMatches].sort((a, b) => {
+      switch (sortValue) {
+        case 'th-asc':
+          return a.sport.localeCompare(b.sport, 'th');
+        case 'th-desc':
+          return b.sport.localeCompare(a.sport, 'th');
+        case 'earliest':
+          const dateA = new Date(`${a.rawDate} ${a.rawTime}`);
+          const dateB = new Date(`${b.rawDate} ${b.rawTime}`);
+          return dateA.getTime() - dateB.getTime();
+        case 'latest':
+          const dateA2 = new Date(`${a.rawDate} ${a.rawTime}`);
+          const dateB2 = new Date(`${b.rawDate} ${b.rawTime}`);
+          return dateB2.getTime() - dateA2.getTime();
+        default:
+          return 0;
+      }
+    });
+    setFilteredMatches(sorted);
+  }, [sortValue, matches]);
+
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      const target = e.target as Node;
+      
+      if (sortOpen && sortWrapRef.current && !sortWrapRef.current.contains(target)) {
+        setSortOpen(false);
+      }
+      
+      if (menuOpen && menuRef.current && !menuRef.current.contains(target)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [sortOpen, menuOpen]);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setSortOpen(false);
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
+  const events = [
+    { date: '25 Dec 2025', time: '18:00 - 19:30', sport: 'Football', match: 'CoE vs DME', location: 'สนาม 50 ปี มหาวิทยาลัยขอนแก่น', url: 'https://www.google.com/maps/place/50th+Anniversary+Stadium+of+Khon+Kaen+University/@16.4765881,102.8155518,942m/data=!3m2!1e3!4b1!4m6!3m5!1s0x31228b23b4aeba4d:0xec1c06ec9cfbe9cb!8m2!3d16.476583!4d102.8181267!16s%2Fg%2F11fdvv7ccd?entry=ttu&g_ep=EgoyMDI1MDkyNC4wIKXMDSoASAFQAw%3D%3D' },
+    { date: '26 Dec 2025', time: '09:00 - 10:00', sport: 'Basketball', match: 'EE vs ME', location: 'โรงยิม KKU', url: 'https://maps.google.com' },
+    { date: '26 Dec 2025', time: '10:00 - 11:00', sport: 'Volleyball', match: 'CPE vs CE', location: 'สนามกีฬา คณะวิศวะ', url: 'https://maps.google.com' },
+    { date: '26 Dec 2025', time: '13:00 - 14:00', sport: 'Badminton', match: 'IE vs CPE', location: 'Sport Complex', url: 'https://maps.google.com' },
+    { date: '27 Dec 2025', time: '08:30 - 09:30', sport: 'Table Tennis', match: 'ME vs IE', location: 'ตึกกีฬา 2', url: 'https://maps.google.com' },
+    { date: '27 Dec 2025', time: '15:00 - 16:30', sport: 'Football', match: 'DME vs CPE', location: 'สนาม 50 ปี มข.', url: 'https://maps.google.com' },
+    { date: '28 Dec 2025', time: '11:00 - 12:00', sport: 'Esports', match: 'CoE vs EE', location: 'E-Sport Arena', url: 'https://maps.google.com' },
+    { date: '28 Dec 2025', time: '17:00 - 18:30', sport: 'Futsal', match: 'EE vs DME', location: 'สนามฟุตซอล คณะ', url: 'https://maps.google.com' },
+    { date: '29 Dec 2025', time: '14:00 - 15:00', sport: 'Chess', match: 'CPE vs ME', location: 'ห้องกิจกรรม', url: 'https://maps.google.com' },
+    { date: '25 Dec 2025', time: '18:00 - 19:30', sport: 'Football', match: 'CoE vs DME', location: 'สนาม 50 ปี มหาวิทยาลัยขอนแก่น', url: 'https://www.google.com/maps/place/50th+Anniversary+Stadium+of+Khon+Kaen+University/@16.4765881,102.8155518,942m/data=!3m2!1e3!4b1!4m6!3m5!1s0x31228b23b4aeba4d:0xec1c06ec9cfbe9cb!8m2!3d16.476583!4d102.8181267!16s%2Fg%2F11fdvv7ccd?entry=ttu&g_ep=EgoyMDI1MDkyNC4wIKXMDSoASAFQAw%3D%3D' },
+    { date: '26 Dec 2025', time: '09:00 - 10:00', sport: 'Basketball', match: 'EE vs ME', location: 'โรงยิม KKU', url: 'https://maps.google.com' },
+    { date: '26 Dec 2025', time: '10:00 - 11:00', sport: 'Volleyball', match: 'CPE vs CE', location: 'สนามกีฬา คณะวิศวะ', url: 'https://maps.google.com' },
+    { date: '26 Dec 2025', time: '13:00 - 14:00', sport: 'Badminton', match: 'IE vs CPE', location: 'Sport Complex', url: 'https://maps.google.com' },
+    { date: '27 Dec 2025', time: '08:30 - 09:30', sport: 'Table Tennis', match: 'ME vs IE', location: 'ตึกกีฬา 2', url: 'https://maps.google.com' },
+    { date: '27 Dec 2025', time: '15:00 - 16:30', sport: 'Football', match: 'DME vs CPE', location: 'สนาม 50 ปี มข.', url: 'https://maps.google.com' },
+    { date: '28 Dec 2025', time: '11:00 - 12:00', sport: 'Esports', match: 'CoE vs EE', location: 'E-Sport Arena', url: 'https://maps.google.com' },
+    { date: '28 Dec 2025', time: '17:00 - 18:30', sport: 'Futsal', match: 'EE vs DME', location: 'สนามฟุตซอล คณะ', url: 'https://maps.google.com' },
+    { date: '29 Dec 2025', time: '14:00 - 15:00', sport: 'Chess', match: 'CPE vs ME', location: 'ห้องกิจกรรม', url: 'https://maps.google.com' },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute inset-0" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-        }} />
+    <div className='bg-black min-h-screen'>
+      <nav className='sticky top-0 bg-red-en font-orbitron text-white py-3 flex items-center justify-between mx-6 mt-10 mb-4 rounded-[8px] shadow-white shadow-md/20 px-6'>
+        <div className='text-xl font-bold'>
+          EN SPORT
       </div>
 
-      <div className="relative z-10 max-w-md mx-auto px-4 py-6 md:max-w-2xl lg:max-w-4xl">
-        {/* Header */}
-        <header className="text-center mb-8">
-          <div className="bg-red-600 rounded-lg px-6 py-4 mb-6 shadow-lg">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-wider">EN SPORT</h1>
+        {session?.user && (
+          <div className='flex items-center gap-4'>
+            {/* แสดง Role */}
+            <div className='text-sm font-medium'>
+              {getUserRole()}
           </div>
-        </header>
-
-        {/* Hero Section - Flaming Basketball */}
-        <section className="text-center mb-8">
-          <div className="bg-gradient-to-r from-gray-800 to-gray-900 rounded-lg p-6 mb-6 border border-gray-700 shadow-xl">
-            <div className="flex items-center justify-between mb-4">
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2 rounded-lg font-bold text-lg">
-                EN
-              </div>
-              <div className="text-center flex-1">
-                <div className="text-orange-400 font-bold text-xl">🏀 BASKETBALL</div>
-                <div className="text-gray-400 text-sm mt-1">2 Febuary 2026</div>
-                <div className="text-gray-400 text-sm mt-1">16.00 - 18.00น.</div>
-              </div>
-              <div className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-4 py-2 rounded-lg font-bold text-lg">
-                CS
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Time Table Section */}
-        <section className="mb-8">
-          <div className="bg-red-600 rounded-lg px-6 py-4 mb-4 shadow-lg">
-            <h2 className="text-xl md:text-2xl font-bold text-center">Time Table</h2>
-          </div>
-
-          {/* Search and Sort */}
-          <div className="flex flex-col md:flex-row gap-3 mb-4">
-            <div className="flex-1">
-              <input
-                type="text"
-                placeholder="Search..."
-                className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
-              />
-            </div>
-            <div className="md:w-32">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
+            
+            {/* Hamburger Menu */}
+            <div className='relative' ref={menuRef}>
+              <button
+                onClick={() => setMenuOpen(!menuOpen)}
+                className='flex flex-col gap-1 p-2 hover:bg-white/10 rounded-md transition-colors'
+                aria-label='Menu'
               >
-                <option value="date">Sort: Date</option>
-                <option value="sport">Sort: Sport</option>
-                <option value="location">Sort: Location</option>
-              </select>
+                <span className='block w-5 h-0.5 bg-white'></span>
+                <span className='block w-5 h-0.5 bg-white'></span>
+                <span className='block w-5 h-0.5 bg-white'></span>
+              </button>
+              
+              {/* Dropdown Menu */}
+              {menuOpen && (
+                <div className='absolute right-0 top-full mt-2 w-48 bg-white text-black rounded-lg shadow-lg border py-2 z-50'>
+                  <button
+                    onClick={handleEditSchedule}
+                    className='w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors'
+                  >
+                    Edit Schedule
+                  </button>
+                  <button
+                    onClick={handleEditBanner}
+                    className='w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors'
+                  >
+                    Edit Banner
+                  </button>
+                  {(session.user as any).role === 'ADMIN' && (
+                    <button
+                      onClick={handleLogs}
+                      className='w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors'
+                    >
+                      Logs
+                    </button>
+                  )}
+                  <hr className='my-1' />
+                  <button
+                    onClick={handleLogout}
+                    className='w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 transition-colors'
+                  >
+                    Log out
+                  </button>
+              </div>
+              )}
+            </div>
+          </div>
+        )}
+      </nav>
+        <section>
+          <div className='mx-6 text-center text-white'>
+            <div className='bg-red-en mb-4 rounded-[8px] w-auto h-[150px] shadow-white shadow-md/20'>
+              <img src="./assets/bg.png" alt="banner" />
+          </div>
+
+            <div className='bg-red-en pb-4 mb-4 rounded-[8px] shadow-white shadow-md/20'>
+
+              <h1 className='justify-center font-rubik font-normal text-white text-md py-3'>
+                Time Table
+              </h1>
+
+              <div className='font-rubik font-light justify-between px-1.5 pb-1.5'>
+                <label htmlFor="Search">Search:</label>
+              <input
+                  type="search"
+                  id="Search"
+                  name="Search"
+                  autoComplete="off"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className='rounded-[8px] mx-1.5 bg-red-en-bg w-[50%] text-black'
+                />
+
+                <div ref={sortWrapRef} className="relative inline-block text-left align-middle ml-2">
+                  <button
+                    ref={btnRef}
+                    type="button"
+                    aria-haspopup="menu"
+                    aria-expanded={sortOpen}
+                    onClick={() => setSortOpen((v) => !v)}
+                    className="inline-flex items-center rounded-[8px] py-2 text-white hover:bg-white/10"
+                    title="Sort"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+                      <path d="M3 5a1 1 0 0 1 1-1h16a1 1 0 0 1 .78 1.63l-6.28 7.85a1 1 0 0 0-.22.63v3.89a1 1 0 0 1-1.45.9l-3-1.5A1 1 0 0 1 9 16.99v-3.11a1 1 0 0 0-.22-.63L2.22 5.63A1 1 0 0 1 3 5z" />
+                    </svg>
+                    <span className="hidden sm:inline">Sort</span>
+                    <span className="text-xs opacity-75">{
+                      sortValue === 'th-asc' ? 'ก-ฮ' :
+                        sortValue === 'th-desc' ? 'ฮ-ก' :
+                          sortValue === 'earliest' ? 'Earliest' : 'Latest'
+                    }</span>
+                  </button>
+
+                  {sortOpen && (
+                    <div
+                      role="menu"
+                      aria-label="Sort options"
+                      className="absolute right-0 z-20 mt-2 min-w-48 rounded-[8px] bg-white text-black shadow-lg ring-1 ring-black/10 p-1"
+                    >
+                      <button
+                        role="menuitem"
+                        onClick={() => chooseSort('th-asc')}
+                        className={`w-full text-left rounded-[6px] px-3 py-2 hover:bg-black/5 ${sortValue === 'th-asc' ? 'bg-black/5 font-medium' : ''}`}
+                      >ก - ฮ</button>
+                      <button
+                        role="menuitem"
+                        onClick={() => chooseSort('th-desc')}
+                        className={`w-full text-left rounded-[6px] px-3 py-2 hover:bg-black/5 ${sortValue === 'th-desc' ? 'bg-black/5 font-medium' : ''}`}
+                      >ฮ - ก</button>
+                      <div className="my-1 h-px bg-black/10" />
+                      <button
+                        role="menuitem"
+                        onClick={() => chooseSort('earliest')}
+                        className={`w-full text-left rounded-[6px] px-3 py-2 hover:bg-black/5 ${sortValue === 'earliest' ? 'bg-black/5 font-medium' : ''}`}
+                      >Earliest</button>
+                      <button
+                        role="menuitem"
+                        onClick={() => chooseSort('latest')}
+                        className={`w-full text-left rounded-[6px] px-3 py-2 hover:bg-black/5 ${sortValue === 'latest' ? 'bg-black/5 font-medium' : ''}`}
+                      >Latest</button>
+            </div>
+                  )}
             </div>
           </div>
 
-          {/* Table Header */}
-          <div className="bg-red-700 rounded-t-lg px-4 py-3">
-            <div className="grid grid-cols-3 gap-4 text-center font-semibold">
-              <div>Time</div>
-              <div>Matches</div>
-              <div>Location</div>
+              <div>
+                <div className='flex flex-row justify-between font-rubik px-6 pb-2 border-b border-white/40 mx-4 text-center'>
+                  <h1>Time</h1>
+                  <h1>Matches</h1>
+                  <h1>Location</h1>
+                </div>
+
+                <div className='mt-2 rounded-[8px] mx-4 '>
+                  {isLoading ? (
+                    <div className="text-center text-white py-8">
+                      <div className="animate-spin inline-block w-8 h-8 border-4 border-white border-t-transparent rounded-full"></div>
+                      <p className="mt-2">กำลังโหลดข้อมูล...</p>
+                    </div>
+                  ) : filteredMatches.length === 0 ? (
+                    <div className="text-center text-white py-8">
+                      <p>ไม่พบข้อมูลการแข่งขัน</p>
+                    </div>
+                  ) : (
+                    filteredMatches.slice(0, 5).map((ev, idx) => (
+                    <div
+                      key={idx}
+                      className='my-3 rounded-[12px] bg-red-en-bg px-4 py-3'
+                    >
+                      <div className='flex items-center justify-between gap-4 font-rubik'>
+                        {/* Time */}
+                        <div className='w-1/3 text-left font-light text-sm'>
+                          <div className='leading-tight'>
+                            <h1>{ev.date}</h1>
+                            <h1>{ev.time}</h1>
             </div>
           </div>
 
-          {/* Table Content */}
-          <div className="bg-gray-800 rounded-b-lg divide-y divide-gray-700">
-            {matches.map((match, index) => (
-              <div key={match.id} className={`px-4 py-4 hover:bg-gray-700 transition-colors ${
-                index % 2 === 0 ? 'bg-red-900/30' : 'bg-red-800/20'
-              }`}>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
-                  <div className="text-center md:text-left">
-                    <div className="font-semibold text-white">{match.date}</div>
-                    <div className="text-gray-300 text-sm">{match.time}</div>
+                        {/* Matches */}
+                        <div className='w-1/3 text-center font-light text-sm'>
+                          <div className='leading-tight'>
+                            <h1>{ev.sport}</h1>
+                            <h1>{ev.match}</h1>
                   </div>
-                  <div className="text-center">
-                    <div className="text-gray-300 text-sm">{match.sport}</div>
-                    <div className="font-semibold text-white">{match.teams}</div>
                   </div>
-                  <div className="text-center md:text-right">
-                    <div className="text-blue-400 hover:text-blue-300 cursor-pointer underline text-sm">
-                      {match.location}
+
+                        {/* Location */}
+                        <div className='w-1/3 text-right font-light text-sm'>
+                          <div className='leading-tight inline-block max-w-[190px] align-middle'>
+                            <a
+                              href={ev.url}
+                              target='blank'
+                              className='block overflow-hidden whitespace-nowrap text-ellipsis underline underline-offset-4'
+                            >
+                              {ev.location.length > 8 ? ev.location.slice(0, 8) + '...' : ev.location}
+                            </a>
                     </div>
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
-        </section>
+                    ))
+                  )}
+           </div>
+              </div>
 
-        {/* Newsletter Subscription */}
-        <section className="mb-8">
-          <div className="bg-red-600 rounded-lg px-6 py-6 shadow-lg">
-            <h3 className="text-xl font-bold text-center mb-4">Get Sport EN Updates</h3>
-            <p className="text-center text-red-100 mb-6 text-sm">
+              <div></div>
+          </div>
+
+             <div className='bg-red-en font-rubik mb-4 rounded-[20px] w-auto shadow-white shadow-md/20 px-6 py-8 sm:px-10 sm:py-12 text-white'>
+              <h2 className='text-2xl font-semibold text-center'>Get Sport EN Updates</h2>
+              <p className='mt-3 font-extralight text-sm max-w-[40ch] text-center opacity-90'>
               Subscribe to receive match reminders and news by email.
             </p>
             
-            <form onSubmit={handleSubscribe} className="space-y-4">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium mb-2">
+              <form className='mt-8 max-w-3xl mx-auto'>
+                <label htmlFor='subscribeEmail' className='block text-lg sm:text-2xl font-semibold mb-2 text-center'>
                   Email:
                 </label>
+                <div className='mx-auto flex items-center justify-center'>
                 <input
-                  type="email"
-                  id="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="example@email.com"
-                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/60 focus:outline-none focus:border-white/40 focus:ring-1 focus:ring-white/40"
-                  required
+                    id='subscribeEmail'
+                    type='email'
+                    placeholder='example@email.com'
+                     className='w-[90%] max-w-[780px] rounded-full bg-red-en-bg px-6 py-3 text-white placeholder-white/60 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-white/40'
                 />
               </div>
               
               <button
-                type="submit"
-                className="w-full bg-red-800 hover:bg-red-900 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-400"
+                  type='button'
+                  className='mt-8 block mx-auto rounded-full px-8 py-3 text-lg font-normal bg-red-en-bg hover:bg-white/10 ring-1 ring-white/10'
               >
                 subscription
               </button>
-            </form>
-            
-            <p className="text-center text-xs text-red-100 mt-4">
-              By subscribing, you agree to receive emails from Sport EN.<br />
-              You can unsubscribe anytime.
-            </p>
+
+                <p className='mt-6 font-extralight max-w-[40ch] text-center text-sm sm:text-base opacity-80 mx-auto'>
+                  By subscribing, you agree to receive emails from Sport EN. You can unsubscribe anytime.
+                </p>
+              </form>
+            </div>
+            <footer className='bg-black text-white text-center font-rubik py-10 space-y-4'>
+              <h2 className='text-lg font-medium'>Contact Us</h2>
+              <h3 className='text-md mt-4'>For Administer</h3>
+              <p className='text-sm opacity-80'>GE362785 Creative Thinking and Problem Solving</p>
+              <p className='text-sm opacity-80'>Copyright © All right reserve 2025 Group 2 Section 4</p>
+            </footer>
           </div>
         </section>
-
-        {/* Footer */}
-        <footer className="text-center text-gray-400 text-xs space-y-2">
-          <div className="flex justify-center space-x-4 mb-4">
-            <a href="#" className="hover:text-white transition-colors">Contact Us</a>
-            <span>•</span>
-            <a href="#" className="hover:text-white transition-colors">About</a>
-          </div>
-          
-          <div className="space-y-1">
-            <div>@ IG</div>
-            <div>For contact</div>
-            <div>GE362785 Creative Thinking and Problem Solving</div>
-            <div>Copyright © All right reserve 2024 Group 2 Section 4</div>
-          </div>
-        </footer>
-      </div>
     </div>
-  );
+  )
 }
+
+export default App

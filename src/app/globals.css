@@ -1,26 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai+Looped:wght@100;200;300;400;500;600;700&family=Orbitron:wght@400..900&family=Rubik:ital,wght@0,300..900;1,300..900&display=swap');
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-plex-thai-looped: "IBM Plex Sans Thai Looped", thai-ui, sans-serif;
+  --font-orbitron: "Orbitron", system-ui, sans-serif;
+  --font-rubik: "Rubik", system-ui, sans-serif;
+  --red-en: #9A0D17;
+  --red-en-bg: #770A12;
+  --red-en-hover: #B1121B;
+  --white-bg: #F5F1EA;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: black;
+}
+
+.bg-red-en {
+  background-color: var(--red-en);
+}
+
+.bg-red-en-bg {
+  background-color: var(--red-en-bg);
+}
+
+.font-orbitron {
+  font-family: var(--font-orbitron);
+}
+
+.font-rubik {
+  font-family: var(--font-rubik);
 }
