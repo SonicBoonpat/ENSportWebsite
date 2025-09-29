@@ -6,7 +6,7 @@ import { authOptions } from '@/lib/session';
 // DELETE - ลบ match
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -14,7 +14,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const matchId = params.id;
+    const resolvedParams = await params;
+    const matchId = resolvedParams.id;
 
     // ดึงข้อมูล match เพื่อตรวจสอบสิทธิ์
     const existingMatch = await prisma.match.findUnique({
@@ -58,7 +59,7 @@ export async function DELETE(
 // PUT - แก้ไข match
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -66,9 +67,10 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const matchId = params.id;
+    const resolvedParams = await params;
+    const matchId = resolvedParams.id;
     const body = await request.json();
-    const { date, time, location, mapsLink, team1, team2 } = body;
+    const { date, timeStart, timeEnd, location, mapsLink, team1, team2 } = body;
 
     // ดึงข้อมูล match เพื่อตรวจสอบสิทธิ์
     const existingMatch = await prisma.match.findUnique({
@@ -95,7 +97,8 @@ export async function PUT(
       where: { id: matchId },
       data: {
         date: date ? new Date(date) : existingMatch.date,
-        time: time || existingMatch.time,
+        timeStart: timeStart || existingMatch.timeStart,
+        timeEnd: timeEnd || existingMatch.timeEnd,
         location: location || existingMatch.location,
         mapsLink: mapsLink || existingMatch.mapsLink,
         team1: team1 || existingMatch.team1,
