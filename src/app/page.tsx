@@ -22,7 +22,7 @@ function App() {
   const { data: session } = useSession();
   const router = useRouter();
   const [sortOpen, setSortOpen] = useState(false);
-  const [sortValue, setSortValue] = useState<'th-asc' | 'th-desc' | 'earliest' | 'latest'>('th-asc');
+  const [sortValue, setSortValue] = useState<'th-asc' | 'th-desc' | 'earliest' | 'latest'>('earliest');
   const [menuOpen, setMenuOpen] = useState(false);
   const [matches, setMatches] = useState<Match[]>([]);
   const [filteredMatches, setFilteredMatches] = useState<Match[]>([]);
@@ -91,42 +91,49 @@ function App() {
     loadMatches();
   }, []);
 
-  // Effect สำหรับ search
+  // Effect สำหรับ search และ sorting
   useEffect(() => {
-    if (!searchTerm) {
-      setFilteredMatches(matches);
-    } else {
-      const filtered = matches.filter(match =>
+    const baseData = searchTerm ? 
+      matches.filter(match =>
         match.sport.toLowerCase().includes(searchTerm.toLowerCase()) ||
         match.match.toLowerCase().includes(searchTerm.toLowerCase()) ||
         match.location.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      setFilteredMatches(filtered);
-    }
-  }, [searchTerm, matches]);
+      ) : matches;
 
-  // Effect สำหรับ sorting
-  useEffect(() => {
-    const sorted = [...filteredMatches].sort((a, b) => {
+    const sorted = [...baseData].sort((a, b) => {
       switch (sortValue) {
         case 'th-asc':
           return a.sport.localeCompare(b.sport, 'th');
         case 'th-desc':
           return b.sport.localeCompare(a.sport, 'th');
         case 'earliest':
-          const dateA = new Date(`${a.rawDate} ${a.rawTime}`);
-          const dateB = new Date(`${b.rawDate} ${b.rawTime}`);
+          // เรียงตามวันที่และเวลา เริ่มจากใกล้ที่สุด
+          const dateA = new Date(a.rawDate);
+          const dateB = new Date(b.rawDate);
+          const timeA = a.rawTime ? a.rawTime.split(':').map(Number) : [0, 0];
+          const timeB = b.rawTime ? b.rawTime.split(':').map(Number) : [0, 0];
+          
+          dateA.setHours(timeA[0], timeA[1], 0, 0);
+          dateB.setHours(timeB[0], timeB[1], 0, 0);
+          
           return dateA.getTime() - dateB.getTime();
         case 'latest':
-          const dateA2 = new Date(`${a.rawDate} ${a.rawTime}`);
-          const dateB2 = new Date(`${b.rawDate} ${b.rawTime}`);
+          // เรียงตามวันที่และเวลา เริ่มจากไกลที่สุด
+          const dateA2 = new Date(a.rawDate);
+          const dateB2 = new Date(b.rawDate);
+          const timeA2 = a.rawTime ? a.rawTime.split(':').map(Number) : [0, 0];
+          const timeB2 = b.rawTime ? b.rawTime.split(':').map(Number) : [0, 0];
+          
+          dateA2.setHours(timeA2[0], timeA2[1], 0, 0);
+          dateB2.setHours(timeB2[0], timeB2[1], 0, 0);
+          
           return dateB2.getTime() - dateA2.getTime();
         default:
           return 0;
       }
     });
     setFilteredMatches(sorted);
-  }, [sortValue, matches]);
+  }, [sortValue, matches, searchTerm]);
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
