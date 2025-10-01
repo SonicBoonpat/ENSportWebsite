@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai+Looped:wght@100;200;300;400;500;600;700&family=Orbitron:wght@400..900&family=Rubik:ital,wght@0,300..900;1,300..900&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -13,6 +12,7 @@
 
 body {
   background-color: black;
+  font-family: var(--font-plex-thai-looped);
 }
 
 .bg-red-en {
@@ -29,4 +29,8 @@ body {
 
 .font-rubik {
   font-family: var(--font-rubik);
+}
+
+.font-plex-thai {
+  font-family: var(--font-plex-thai-looped);
 }
