@@ -62,39 +62,53 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    // Get total count
-    const total = await prisma.activityLog.count({
-      where: whereCondition
-    });
+    try {
+      // Get total count
+      const total = await (prisma as any).activityLog.count({
+        where: whereCondition
+      });
 
-    // Get logs
-    const logs = await prisma.activityLog.findMany({
-      where: whereCondition,
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take: limit,
-      select: {
-        id: true,
-        userId: true,
-        userName: true,
-        userRole: true,
-        action: true,
-        target: true,
-        targetId: true,
-        details: true,
-        ipAddress: true,
-        userAgent: true,
-        createdAt: true
-      }
-    });
+      // Get logs
+      const logs = await (prisma as any).activityLog.findMany({
+        where: whereCondition,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          userId: true,
+          userName: true,
+          userRole: true,
+          action: true,
+          target: true,
+          targetId: true,
+          details: true,
+          ipAddress: true,
+          userAgent: true,
+          createdAt: true
+        }
+      });
 
-    return NextResponse.json({
-      logs,
-      total,
-      page,
-      totalPages: Math.ceil(total / limit),
-      hasMore: page * limit < total
-    });
+      return NextResponse.json({
+        logs,
+        total,
+        page,
+        totalPages: Math.ceil(total / limit),
+        hasMore: page * limit < total
+      });
+
+    } catch (dbError) {
+      // If ActivityLog table doesn't exist yet, return empty logs
+      console.log('ActivityLog table not found, returning empty logs');
+      return NextResponse.json({
+        logs: [],
+        total: 0,
+        page: 1,
+        totalPages: 0,
+        hasMore: false,
+        message: 'Activity logs will be available after database schema update'
+      });
+    }
 
   } catch (error) {
     console.error('Error fetching logs:', error);

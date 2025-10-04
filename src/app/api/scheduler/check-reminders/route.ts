@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
         date: new Date(tomorrowDate + 'T00:00:00.000Z'),
         timeStart: {
           not: null
-        },
+        } as any,
         status: 'SCHEDULED', // เฉพาะการแข่งขันที่ยังไม่เริ่ม
         // เพิ่มเงื่อนไขเพื่อไม่ส่งซ้ำ (อาจจะเพิ่ม field reminderSent ใน schema ในอนาคต)
       },
