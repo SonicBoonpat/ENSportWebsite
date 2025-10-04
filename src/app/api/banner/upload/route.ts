@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
         filename: file.name,
         url: uploadResult.secure_url,
         publicId: uploadResult.public_id,
-        uploadedBy: session.user.id,
+        uploadedBy: (session.user as any).id,
       },
     });
 

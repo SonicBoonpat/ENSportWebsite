@@ -33,7 +33,7 @@ export async function DELETE(
     }
 
     const userRole = (session.user as any).role;
-    const userId = session.user.id;
+    const userId = (session.user as any).id;
 
     // หา Banner
     const banner = await prisma.banner.findUnique({
