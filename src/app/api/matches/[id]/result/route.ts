@@ -26,7 +26,7 @@ export async function PUT(
     }
 
     const userRole = (session.user as any).role;
-    const userId = session.user.id;
+    const userId = (session.user as any).id;
 
     // รับข้อมูลจาก request
     const { homeScore, awayScore, winner } = await req.json();
@@ -95,7 +95,6 @@ export async function PUT(
       data: {
         homeScore: parseInt(homeScore),
         awayScore: parseInt(awayScore),
-        winner: winner,
         status: 'COMPLETED' as any, // เปลี่ยนสถานะเป็น COMPLETED หลังใส่ผล
         updatedAt: new Date(),
       },
