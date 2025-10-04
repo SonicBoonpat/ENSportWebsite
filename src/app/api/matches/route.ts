@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/session';
+import { logActivity, ACTIVITY_ACTIONS } from '@/lib/activityLogger';
 
-// GET - ดึงข้อมูล matches ตาม sport
+// GET - ดึงข้อมูล matches ตาม sport (Admin ดูได้ทุกกีฬา)
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -13,20 +14,38 @@ export async function GET(request: NextRequest) {
 
     const url = new URL(request.url);
     const sport = url.searchParams.get('sport');
+    const userRole = (session.user as any).role;
+    const userSportType = (session.user as any).sportType;
 
-    if (!sport) {
-      return NextResponse.json({ error: 'Sport parameter required' }, { status: 400 });
+    let whereCondition: any = {};
+
+    // Admin สามารถดูทุกกีฬาได้
+    if (userRole === 'ADMIN') {
+      // ถ้าไม่ระบุ sport parameter ให้ดูทุกกีฬา
+      if (sport) {
+        whereCondition.sportType = sport;
+      }
+      // ถ้าไม่ระบุ sport จะดูทุกกีฬา (whereCondition จะเป็น {})
+    } else {
+      // Sport Manager ดูได้เฉพาะกีฬาของตัวเอง
+      if (!sport) {
+        return NextResponse.json({ error: 'Sport parameter required' }, { status: 400 });
+      }
+      
+      if (userSportType !== sport) {
+        return NextResponse.json({ error: 'You can only view your own sport' }, { status: 403 });
+      }
+      
+      whereCondition.sportType = sport;
     }
 
-    // ดึงข้อมูล matches ของกีฬาที่กำหนด
+    // ดึงข้อมูล matches
     const matches = await prisma.match.findMany({
-      where: {
-        sportType: sport
-      },
-        orderBy: [
-          { date: 'asc' },
-          { timeStart: 'asc' }
-        ]
+      where: whereCondition,
+      orderBy: [
+        { date: 'asc' },
+        { timeStart: 'asc' }
+      ]
     });
 
     return NextResponse.json({
@@ -86,6 +105,24 @@ export async function POST(request: NextRequest) {
         sportType: sport,
         status: 'SCHEDULED',
       }
+    });
+
+    // บันทึก Activity Log
+    await logActivity({
+      userId: (session.user as any).id!,
+      userName: session.user.name || 'Unknown',
+      userRole: (session.user as any).role,
+      action: ACTIVITY_ACTIONS.CREATE_MATCH,
+      target: `${team1} vs ${team2} (${sport})`,
+      targetId: match.id,
+      details: {
+        date,
+        timeStart,
+        timeEnd,
+        location,
+        sport
+      },
+      request
     });
 
     return NextResponse.json({

@@ -15,7 +15,6 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      console.log('Attempting login with:', username);
       
       const result = await signIn('credentials', {
         email: username, // NextAuth ใช้ field 'email' แต่เราส่ง username
@@ -23,14 +22,31 @@ export default function LoginPage() {
         redirect: false, // ไม่ redirect อัตโนมัติ
       });
 
-      console.log('SignIn result:', result);
-
       if (result?.ok && !result?.error) {
-        console.log('Login successful!');
+        // บันทึก Login Log
+        try {
+          const session = await getSession();
+          if (session?.user) {
+            await fetch('/api/auth/log-login', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                userId: (session.user as any).id,
+                userName: session.user.name || username,
+                userRole: (session.user as any).role,
+              }),
+            });
+          }
+        } catch (logError) {
+          console.error('Error logging login:', logError);
+          // ไม่ให้ error ของ log ทำให้ login ล้มเหลว
+        }
+
         // ใช้ router.push แทน window.location เพื่อทดสอบ
         router.push('/');
       } else {
-        console.error('Login failed:', result?.error);
         let errorMessage = 'การเข้าสู่ระบบไม่สำเร็จ';
         if (result?.error === 'CredentialsSignin') {
           errorMessage = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';

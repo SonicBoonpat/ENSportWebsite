@@ -4,6 +4,7 @@ import './globals.css'
 import { useEffect, useRef, useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import ConfirmModal from '@/components/ConfirmModal'
 
 interface Match {
   id: string;
@@ -16,6 +17,11 @@ interface Match {
   status: string;
   rawDate: string;
   rawTime: string;
+  timeEnd?: string;
+  homeScore?: number;
+  awayScore?: number;
+  team1?: string;
+  team2?: string;
 }
 
 function App() {
@@ -28,9 +34,60 @@ function App() {
   const [filteredMatches, setFilteredMatches] = useState<Match[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [banners, setBanners] = useState<Array<{id: string, url: string, filename: string}>>([]);
+  const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
+  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const sortWrapRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  
+  // Subscription form state
+  const [subscribeEmail, setSubscribeEmail] = useState('');
+
+  // Confirm Modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'danger' | 'warning' | 'info' | 'success';
+    onConfirm: () => void;
+    confirmText?: string;
+    isLoading?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'info',
+    onConfirm: () => {},
+    isLoading: false
+  });
+
+  // Helper functions for confirm modal
+  const openConfirmModal = (
+    title: string, 
+    message: string, 
+    onConfirm: () => void, 
+    type: 'danger' | 'warning' | 'info' | 'success' = 'info',
+    confirmText?: string
+  ) => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      type,
+      onConfirm,
+      confirmText,
+      isLoading: false
+    });
+  };
+
+  const closeConfirmModal = () => {
+    setConfirmModal(prev => ({ ...prev, isOpen: false }));
+  };
+
+  const setConfirmLoading = (loading: boolean) => {
+    setConfirmModal(prev => ({ ...prev, isLoading: loading }));
+  };
 
   function chooseSort(val: 'th-asc' | 'th-desc' | 'earliest' | 'latest') {
     setSortValue(val);
@@ -47,15 +104,86 @@ function App() {
   };
 
   const handleEditBanner = () => {
-    // TODO: Navigate to edit banner page  
-    console.log('Edit Banner clicked');
+    router.push('/edit-banner');
     setMenuOpen(false);
   };
 
   const handleLogs = () => {
-    // TODO: Navigate to logs page
-    console.log('Logs clicked');
+    router.push('/logs');
     setMenuOpen(false);
+  };
+
+  // Handle subscription form submit
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!subscribeEmail || !subscribeEmail.includes('@')) {
+      // แสดงข้อผิดพลาดใน Modal
+      openConfirmModal(
+        'ข้อมูลไม่ถูกต้อง!',
+        'กรุณากรอกอีเมลที่ถูกต้อง',
+        () => closeConfirmModal(),
+        'danger',
+        'ตกลง'
+      );
+      return;
+    }
+
+    // เปิด Modal ยืนยันการสมัครสมาชิก
+    openConfirmModal(
+      'ยืนยันการสมัครรับข่าวสาร',
+      `คุณต้องการสมัครรับข่าวสารกีฬาด้วยอีเมล "${subscribeEmail}" ใช่หรือไม่?`,
+      async () => {
+        setConfirmLoading(true);
+        try {
+          const response = await fetch('/api/subscribers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: subscribeEmail }),
+          });
+
+          const data = await response.json();
+
+          if (response.ok) {
+            setSubscribeEmail(''); // Clear form
+            // แสดงข้อความสำเร็จใน Modal
+            setConfirmModal(prev => ({
+              ...prev,
+              title: 'สมัครสำเร็จ!',
+              message: 'สมัครรับข่าวสารสำเร็จ! กรุณาตรวจสอบอีเมลของคุณ',
+              type: 'success',
+              confirmText: 'ตกลง',
+              isLoading: false,
+              onConfirm: closeConfirmModal
+            }));
+          } else {
+            // แสดงข้อผิดพลาดใน Modal
+            setConfirmModal(prev => ({
+              ...prev,
+              title: 'เกิดข้อผิดพลาด!',
+              message: data.error || 'เกิดข้อผิดพลาดในการสมัคร',
+              type: 'danger',
+              confirmText: 'ตกลง',
+              isLoading: false,
+              onConfirm: closeConfirmModal
+            }));
+          }
+        } catch (error) {
+          // แสดงข้อผิดพลาดใน Modal
+          setConfirmModal(prev => ({
+            ...prev,
+            title: 'เกิดข้อผิดพลาด!',
+            message: 'เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองใหม่อีกครั้ง',
+            type: 'danger',
+            confirmText: 'ตกลง',
+            isLoading: false,
+            onConfirm: closeConfirmModal
+          }));
+        }
+      },
+      'info',
+      'สมัครสมาชิก'
+    );
   };
 
   const getUserRole = () => {
@@ -65,6 +193,43 @@ function App() {
     if (role === 'SPORT_MANAGER') return 'Sport Manager';
     if (role === 'EDITOR') return 'Editor';
     return role || null;
+  };
+
+  // ฟังก์ชันตรวจสอบสถานะของการแข่งขัน
+  const getMatchStatus = (match: Match) => {
+    if (match.status === 'COMPLETED') {
+      return 'COMPLETED';
+    }
+    if (match.status === 'PENDING_RESULT') {
+      return 'PENDING_RESULT';
+    }
+    if (match.status === 'ONGOING') {
+      return 'ONGOING';
+    }
+    
+    // ตรวจสอบเวลาปัจจุบันเทียบกับเวลาแข่งขัน
+    if (match.timeEnd && match.rawTime) {
+      const now = new Date();
+      const matchDate = new Date(match.rawDate);
+      
+      // เวลาเริ่มแข่ง
+      const [startHours, startMinutes] = match.rawTime.split(':');
+      const startTime = new Date(matchDate);
+      startTime.setHours(parseInt(startHours), parseInt(startMinutes), 0, 0);
+      
+      // เวลาจบแข่ง
+      const [endHours, endMinutes] = match.timeEnd.split(':');
+      const endTime = new Date(matchDate);
+      endTime.setHours(parseInt(endHours), parseInt(endMinutes), 0, 0);
+      
+      if (now >= startTime && now <= endTime) {
+        return 'ONGOING';
+      } else if (now > endTime) {
+        return 'PENDING_RESULT';
+      }
+    }
+    
+    return 'SCHEDULED';
   };
 
   // โหลดข้อมูล matches จาก API
@@ -89,7 +254,44 @@ function App() {
   // Effect สำหรับโหลดข้อมูลเมื่อ component mount
   useEffect(() => {
     loadMatches();
+    loadBanners();
   }, []);
+
+  const loadBanners = async () => {
+    try {
+      const response = await fetch('/api/banner/public');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.banners && data.banners.length > 0) {
+          setBanners(data.banners.map((banner: any) => ({
+            id: banner.id,
+            url: banner.url,
+            filename: banner.filename
+          })));
+        }
+      }
+    } catch (error) {
+      console.error('Error loading banners:', error);
+    }
+  };
+
+  // Auto-slide banners ทุก 10 วินาที
+  useEffect(() => {
+    if (banners.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setCurrentBannerIndex((prevIndex) => 
+        prevIndex === banners.length - 1 ? 0 : prevIndex + 1
+      );
+    }, 10000); // 10 วินาที
+
+    return () => clearInterval(interval);
+  }, [banners.length]);
+
+  // ฟังก์ชันสำหรับกดจุดเปลี่ยน Banner
+  const goToBanner = (index: number) => {
+    setCurrentBannerIndex(index);
+  };
 
   // Effect สำหรับ search และ sorting
   useEffect(() => {
@@ -184,8 +386,9 @@ function App() {
   ];
 
   return (
-    <div className='bg-black min-h-screen'>
-      <nav className='sticky top-0 bg-red-en font-orbitron text-white py-3 flex items-center justify-between mx-6 mt-10 mb-4 rounded-[8px] shadow-white shadow-md/20 px-6'>
+    <>
+      <main className='bg-black min-h-screen'>
+        <nav className='sticky top-0 bg-red-en font-orbitron text-white py-3 flex items-center justify-between mx-6 mt-10 mb-4 rounded-[8px] shadow-white shadow-md/20 px-6 z-50'>
         <div className='text-xl font-bold'>
           EN SPORT
       </div>
@@ -211,7 +414,7 @@ function App() {
               
               {/* Dropdown Menu */}
               {menuOpen && (
-                <div className='absolute right-0 top-full mt-2 w-48 bg-white text-black rounded-lg shadow-lg border py-2 z-50'>
+                <div className='absolute right-0 top-full mt-2 w-48 bg-white text-black rounded-lg shadow-lg border py-2 z-[100]'>
                   <button
                     onClick={handleEditSchedule}
                     className='w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors'
@@ -247,8 +450,53 @@ function App() {
       </nav>
         <section>
           <div className='mx-6 text-center text-white'>
-            <div className='bg-red-en mb-4 rounded-[8px] w-auto h-[150px] shadow-white shadow-md/20'>
-              <img src="./assets/bg.png" alt="banner" />
+            <div className='bg-red-en mb-4 rounded-[8px] w-auto h-[150px] shadow-white shadow-md/20 overflow-hidden relative'>
+              {banners.length > 0 ? (
+                <>
+                  {/* Banner Slider Container */}
+                  <div 
+                    className="flex h-full transition-transform duration-700 ease-in-out"
+                    style={{
+                      transform: `translateX(-${currentBannerIndex * 100}%)`,
+                    }}
+                  >
+                    {banners.map((banner, index) => (
+                      <div 
+                        key={banner.id}
+                        className="w-full h-full flex-shrink-0"
+                      >
+                        <img 
+                          src={banner.url} 
+                          alt={banner.filename || "Banner"} 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Banner Indicators */}
+                  {banners.length > 1 && (
+                    <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex gap-2">
+                      {banners.map((_, index) => (
+                        <button
+                          key={index}
+                          onClick={() => goToBanner(index)}
+                          className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                            index === currentBannerIndex 
+                              ? 'bg-white scale-125' 
+                              : 'bg-white/50 hover:bg-white/80'
+                          }`}
+                          aria-label={`Go to banner ${index + 1}`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-red-en">
+                  <span className="text-white/60">No Banner Available</span>
+                </div>
+              )}
           </div>
 
             <div className='bg-red-en pb-4 mb-4 rounded-[8px] shadow-white shadow-md/20'>
@@ -324,9 +572,9 @@ function App() {
 
               <div>
                 <div className='flex flex-row justify-between font-rubik px-6 pb-2 border-b border-white/40 mx-4 text-center'>
-                  <h1>Time</h1>
-                  <h1>Matches</h1>
-                  <h1>Location</h1>
+                  <h1 className='w-1/5'>Time/Status</h1>
+                  <h1 className='w-1/5'>Matches</h1>
+                  <h1 className='w-1/5'>Location</h1>
                 </div>
 
                 <div className='mt-2 rounded-[8px] mx-4 '>
@@ -340,57 +588,96 @@ function App() {
                       <p>ไม่พบข้อมูลการแข่งขัน</p>
                     </div>
                   ) : (
-                    filteredMatches.slice(0, 5).map((ev, idx) => (
-                    <div
-                      key={idx}
-                      className='my-3 rounded-[12px] bg-red-en-bg px-4 py-3'
-                    >
-                      <div className='flex items-center justify-between gap-4 font-rubik'>
-                        {/* Time */}
-                        <div className='w-1/3 text-left font-light text-sm'>
-                          <div className='leading-tight'>
-                            <h1>{ev.date}</h1>
-                            <h1>{ev.time}</h1>
+                    filteredMatches.slice(0, 5).map((ev, idx) => {
+                      const matchStatus = getMatchStatus(ev);
+                      return (
+                        <div
+                          key={idx}
+                          onClick={() => setSelectedMatch(ev)}
+                          className='my-3 rounded-[12px] bg-red-en-bg px-4 py-3 cursor-pointer hover:bg-red-en-bg/80 transition-colors'
+                        >
+                          <div className='flex items-center justify-between gap-2 font-rubik'>
+                            {/* Time/Status */}
+                            <div className='w-1/5 text-left font-light text-sm'>
+                              <div className='leading-tight'>
+                                {matchStatus === 'COMPLETED' ? (
+                                  <>
+                                    <h1 className='text-green-300 font-medium text-xs'>✅ Completed</h1>
+                                  </>
+                                ) : matchStatus === 'ONGOING' ? (
+                                  <>
+                                    <h1 className='text-red-400 font-bold text-xs animate-pulse'>🔴 LIVE</h1>
+                                  </>
+                                ) : matchStatus === 'PENDING_RESULT' ? (
+                                  <>
+                                    <h1 className='text-yellow-300 font-medium text-xs'>⏰ Waiting</h1>
+                                  </>
+                                ) : (
+                                  <>
+                                    <h1>{ev.date}</h1>
+                                    <h1>{ev.time}</h1>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Score Team 1 (Home) */}
+                            <div className='w-[10%] text-right font-light text-sm'>
+                              {matchStatus === 'COMPLETED' && ev.homeScore !== undefined ? (
+                                <h1 className='text-2xl font-bold text-green-300'>{ev.homeScore}</h1>
+                              ) : (
+                                <h1 className='text-gray-400'>-</h1>
+                              )}
+                            </div>
+
+                            {/* Matches */}
+                            <div className='w-2/5 text-center font-light text-sm'>
+                              <div className='leading-tight'>
+                                <h1>{ev.sport}</h1>
+                                <h1>{ev.match}</h1>
             </div>
           </div>
 
-                        {/* Matches */}
-                        <div className='w-1/3 text-center font-light text-sm'>
-                          <div className='leading-tight'>
-                            <h1>{ev.sport}</h1>
-                            <h1>{ev.match}</h1>
-                  </div>
-                  </div>
+                            {/* Score Team 2 (Away) */}
+                            <div className='w-[10%] text-left font-light text-sm'>
+                              {matchStatus === 'COMPLETED' && ev.awayScore !== undefined ? (
+                                <h1 className='text-2xl font-bold text-green-300'>{ev.awayScore}</h1>
+                              ) : (
+                                <h1 className='text-gray-400'>-</h1>
+                              )}
+                            </div>
 
-                        {/* Location */}
-                        <div className='w-1/3 text-right font-light text-sm'>
-                          <div className='leading-tight inline-block max-w-[190px] align-middle'>
-                            <a
-                              href={ev.url}
-                              target='blank'
-                              className='block overflow-hidden whitespace-nowrap text-ellipsis underline underline-offset-4'
-                            >
-                              {ev.location.length > 8 ? ev.location.slice(0, 8) + '...' : ev.location}
-                            </a>
+                            {/* Location */}
+                            <div className='w-1/5 text-right font-light text-sm'>
+                              <div className='leading-tight inline-block max-w-[190px] align-middle'>
+                                <a
+                                  href={ev.url}
+                                  target='_blank'
+                                  rel='noopener noreferrer'
+                                  onClick={(e) => e.stopPropagation()}
+                                  className='block overflow-hidden whitespace-nowrap text-ellipsis underline underline-offset-4'                                >
+                                  {ev.location.length > 8 ? ev.location.slice(0, 8) + '...' : ev.location}
+                                </a>
+                  </div>
+                  </div>
                     </div>
                   </div>
-                </div>
-              </div>
-                    ))
+                      );
+                    })
                   )}
-           </div>
+                </div>
               </div>
 
               <div></div>
           </div>
 
-             <div className='bg-red-en font-rubik mb-4 rounded-[20px] w-auto shadow-white shadow-md/20 px-6 py-8 sm:px-10 sm:py-12 text-white'>
+            <div className='bg-red-en font-rubik mb-4 rounded-[20px] w-auto shadow-white shadow-md/20 px-6 py-8 sm:px-10 sm:py-12 text-white'>
               <h2 className='text-2xl font-semibold text-center'>Get Sport EN Updates</h2>
               <p className='mt-3 font-extralight text-sm max-w-[40ch] text-center opacity-90'>
               Subscribe to receive match reminders and news by email.
             </p>
             
-              <form className='mt-8 max-w-3xl mx-auto'>
+              <form onSubmit={handleSubscribe} className='mt-8 max-w-3xl mx-auto'>
                 <label htmlFor='subscribeEmail' className='block text-lg sm:text-2xl font-semibold mb-2 text-center'>
                   Email:
                 </label>
@@ -398,17 +685,24 @@ function App() {
                 <input
                     id='subscribeEmail'
                     type='email'
-                    placeholder='example@email.com'
-                     className='w-[90%] max-w-[780px] rounded-full bg-red-en-bg px-6 py-3 text-white placeholder-white/60 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-white/40'
+                    placeholder='example@kkumail.com'
+                    value={subscribeEmail}
+                    onChange={(e) => setSubscribeEmail(e.target.value)}
+                    disabled={confirmModal.isLoading}
+                  required
+                     className='w-[90%] max-w-[780px] rounded-full bg-red-en-bg px-6 py-3 text-white placeholder-white/60 outline-none ring-1 ring-white/10 focus:ring-2 focus:ring-white/40 disabled:opacity-50'
                 />
               </div>
               
               <button
-                  type='button'
-                  className='mt-8 block mx-auto rounded-full px-8 py-3 text-lg font-normal bg-red-en-bg hover:bg-white/10 ring-1 ring-white/10'
+                  type='submit'
+                  disabled={confirmModal.isLoading}
+                  className='mt-8 block mx-auto rounded-full px-8 py-3 text-lg font-normal bg-red-en-bg hover:bg-white/10 ring-1 ring-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed'
               >
-                subscription
+                {confirmModal.isLoading ? 'กำลังสมัคร...' : 'subscription'}
               </button>
+
+              {/* Message Display - ลบออกแล้วเพราะใช้ Modal แทน */}
 
                 <p className='mt-6 font-extralight max-w-[40ch] text-center text-sm sm:text-base opacity-80 mx-auto'>
                   By subscribing, you agree to receive emails from Sport EN. You can unsubscribe anytime.
@@ -423,7 +717,165 @@ function App() {
             </footer>
           </div>
         </section>
+
+        {/* Match Detail Modal */}
+        {selectedMatch && (
+          <div 
+            className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+            onClick={() => setSelectedMatch(null)}
+          >
+            <div 
+              className="bg-gradient-to-br from-slate-800 via-slate-900 to-black rounded-3xl w-full max-w-lg overflow-hidden relative shadow-2xl border border-gray-700/50"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Close Button */}
+              <button
+                onClick={() => setSelectedMatch(null)}
+                className="absolute top-4 right-4 text-white/70 hover:text-white text-3xl font-light z-10 transition-colors"
+              >
+                ×
+              </button>
+
+              {/* Header with Date/Time */}
+              <div className="bg-gradient-to-r from-red-600/20 to-red-800/20 backdrop-blur-sm px-8 py-6 text-center text-white border-b border-gray-700/30">
+                <div className="text-xl font-bold mb-1">{selectedMatch.date}</div>
+                <div className="text-sm opacity-70 font-medium">{selectedMatch.time}</div>
+              </div>
+
+              {/* Teams and Score Section */}
+              <div className="py-10 px-8">
+                <div className="flex items-center justify-between gap-6">
+                  {/* Team 1 */}
+                  <div className="flex-1 text-center">
+                    <div className="mb-4">
+                      <div className="text-2xl font-bold text-white mb-2">
+                        {selectedMatch.team1 || 'Team 1'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Score Section */}
+                  <div className="text-center px-4">
+                    {getMatchStatus(selectedMatch) === 'COMPLETED' && 
+                     selectedMatch.homeScore !== undefined && 
+                     selectedMatch.awayScore !== undefined ? (
+                      <div className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-2xl px-6 py-4 border border-green-500/30">
+                        <div className="text-white text-4xl font-bold mb-1">
+                          {selectedMatch.homeScore} - {selectedMatch.awayScore}
+                        </div>
+                        <div className="text-green-400 text-xs uppercase tracking-wider font-medium">
+                          FINAL SCORE
+                        </div>
+                      </div>
+                    ) : getMatchStatus(selectedMatch) === 'ONGOING' ? (
+                      <div className="bg-gradient-to-r from-red-600/20 to-red-800/20 rounded-2xl px-6 py-4 border border-red-500/30">
+                        <div className="text-red-400 text-2xl font-light mb-1">
+                          LIVE
+                        </div>
+                        <div className="text-red-400 text-xs uppercase tracking-wider font-medium animate-pulse">
+                          กำลังแข่งขัน
+                        </div>
+                      </div>
+                    ) : getMatchStatus(selectedMatch) === 'PENDING_RESULT' ? (
+                      <div className="bg-gradient-to-r from-yellow-600/20 to-orange-600/20 rounded-2xl px-6 py-4 border border-yellow-500/30">
+                        <div className="text-yellow-400 text-2xl font-light mb-1">
+                          VS
+                        </div>
+                        <div className="text-yellow-400 text-xs uppercase tracking-wider font-medium">
+                          AWAITING RESULT
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-gradient-to-r from-blue-600/20 to-indigo-600/20 rounded-2xl px-6 py-4 border border-blue-500/30">
+                        <div className="text-blue-400 text-2xl font-light mb-1">
+                          VS
+                        </div>
+                        <div className="text-blue-400 text-xs uppercase tracking-wider font-medium">
+                          SCHEDULED
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Team 2 */}
+                  <div className="flex-1 text-center">
+                    <div className="mb-4">
+                      <div className="text-2xl font-bold text-white mb-2">
+                        {selectedMatch.team2 || 'Team 2'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Match Details */}
+              <div className="px-8 pb-8">
+                <div className="bg-gray-800/30 rounded-2xl p-6 space-y-4 border border-gray-700/30">
+                  {/* Sport Type */}
+                  <div className="flex items-center justify-between">
+                    <div className="text-gray-400 text-sm uppercase tracking-wider font-medium">Sport</div>
+                    <div className="text-white font-semibold">{selectedMatch.sport}</div>
+                  </div>
+
+                  {/* Location */}
+                  <div className="flex items-center justify-between">
+                    <div className="text-gray-400 text-sm uppercase tracking-wider font-medium">Location</div>
+                    <a
+                      href={selectedMatch.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 font-semibold hover:text-blue-300 transition-colors underline decoration-blue-400/30 hover:decoration-blue-300"
+                    >
+                      {selectedMatch.location}
+                    </a>
+          </div>
+          
+                  {/* Status */}
+                  <div className="flex items-center justify-between">
+                    <div className="text-gray-400 text-sm uppercase tracking-wider font-medium">Status</div>
+                    <div className="font-semibold">
+                      {getMatchStatus(selectedMatch) === 'COMPLETED' ? (
+                        <span className="text-green-400 flex items-center gap-2">
+                          <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                          Completed
+                        </span>
+                      ) : getMatchStatus(selectedMatch) === 'ONGOING' ? (
+                        <span className="text-red-400 flex items-center gap-2">
+                          <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></span>
+                          กำลังแข่งขัน
+                        </span>
+                      ) : getMatchStatus(selectedMatch) === 'PENDING_RESULT' ? (
+                        <span className="text-yellow-400 flex items-center gap-2">
+                          <span className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>
+                          Waiting for result
+                        </span>
+                      ) : (
+                        <span className="text-blue-400 flex items-center gap-2">
+                          <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
+                          Scheduled
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+          </div>
+      </div>
     </div>
+        )}
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={closeConfirmModal}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        type={confirmModal.type}
+        confirmText={confirmModal.confirmText}
+        isLoading={confirmModal.isLoading}
+      />
+      </main>
+    </>
   )
 }
 

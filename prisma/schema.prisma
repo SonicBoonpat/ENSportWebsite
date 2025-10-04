@@ -100,6 +100,7 @@ model Match {
   status     MatchStatus @default(SCHEDULED)
   homeScore  Int?
   awayScore  Int?
+  winner     String?     // ทีมที่ชนะ (team1, team2, หรือ draw)
   extraInfo  String?     @db.LongText
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
@@ -161,11 +162,9 @@ enum UserRole {
 
 enum MatchStatus {
   SCHEDULED
-  LIVE
-  HALFTIME
-  FINISHED
-  POSTPONED
-  CANCELLED
+  ONGOING         // กำลังแข่งขัน
+  PENDING_RESULT  // รอผลการแข่งขัน
+  COMPLETED
 }
 
 enum AlertType {
@@ -178,4 +177,43 @@ enum AlertType {
 enum FavoriteType {
   TEAM
   LEAGUE
+}
+
+model Subscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  isActive  Boolean  @default(true)
+  sports    String?  @db.LongText // JSON array ของกีฬาที่สนใจ
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("subscribers")
+}
+
+model Banner {
+  id         String   @id @default(cuid())
+  filename   String
+  url        String   @db.LongText
+  publicId   String   // Cloudinary public ID
+  uploadedBy String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("banners")
+}
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  userId      String   // ผู้ทำการกระทำ
+  userName    String   // ชื่อผู้ใช้
+  userRole    String   // บทบาทผู้ใช้
+  action      String   // การกระทำ (UPLOAD_BANNER, DELETE_BANNER, CREATE_MATCH, etc.)
+  target      String   // เป้าหมายของการกระทำ (banner filename, match details, etc.)
+  targetId    String?  // ID ของเป้าหมาย
+  details     String?  @db.LongText // รายละเอียดเพิ่มเติม (JSON)
+  ipAddress   String?  // IP Address
+  userAgent   String?  @db.LongText // User Agent
+  createdAt   DateTime @default(now())
+
+  @@map("activity_logs")
 }

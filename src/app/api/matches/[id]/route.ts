@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/session';
+import { logActivity, ACTIVITY_ACTIONS } from '@/lib/activityLogger';
 
 // DELETE - ลบ match
 export async function DELETE(
@@ -42,6 +43,24 @@ export async function DELETE(
       where: { id: matchId }
     });
 
+    // บันทึก Activity Log
+    await logActivity({
+      userId: (session.user as any).id!,
+      userName: session.user.name || 'Unknown',
+      userRole: (session.user as any).role,
+      action: ACTIVITY_ACTIONS.DELETE_MATCH,
+      target: `${existingMatch.team1} vs ${existingMatch.team2} (${existingMatch.sportType})`,
+      targetId: existingMatch.id,
+      details: {
+        date: existingMatch.date,
+        timeStart: existingMatch.timeStart,
+        timeEnd: existingMatch.timeEnd,
+        location: existingMatch.location,
+        sport: existingMatch.sportType
+      },
+      request
+    });
+
     return NextResponse.json({
       success: true,
       message: 'Match deleted successfully'
@@ -70,6 +89,7 @@ export async function PUT(
     const resolvedParams = await params;
     const matchId = resolvedParams.id;
     const body = await request.json();
+    
     const { date, timeStart, timeEnd, location, mapsLink, team1, team2 } = body;
 
     // ดึงข้อมูล match เพื่อตรวจสอบสิทธิ์
@@ -96,14 +116,46 @@ export async function PUT(
     const updatedMatch = await prisma.match.update({
       where: { id: matchId },
       data: {
-        date: date ? new Date(date) : existingMatch.date,
-        timeStart: timeStart || existingMatch.timeStart,
-        timeEnd: timeEnd || existingMatch.timeEnd,
-        location: location || existingMatch.location,
-        mapsLink: mapsLink || existingMatch.mapsLink,
-        team1: team1 || existingMatch.team1,
-        team2: team2 || existingMatch.team2,
+        ...(body.status && { status: body.status }),
+        ...(date && { date: new Date(date) }),
+        ...(timeStart && { timeStart }),
+        ...(timeEnd && { timeEnd }),
+        ...(location && { location }),
+        ...(mapsLink && { mapsLink }),
+        ...(team1 && { team1 }),
+        ...(team2 && { team2 }),
       }
+    });
+
+    // บันทึก Activity Log
+    await logActivity({
+      userId: (session.user as any).id!,
+      userName: session.user.name || 'Unknown',
+      userRole: (session.user as any).role,
+      action: body.status ? ACTIVITY_ACTIONS.UPDATE_MATCH_STATUS : ACTIVITY_ACTIONS.UPDATE_MATCH,
+      target: `${updatedMatch.team1} vs ${updatedMatch.team2} (${updatedMatch.sportType})`,
+      targetId: updatedMatch.id,
+      details: {
+        changes: {
+          ...(body.status && { status: body.status }),
+          ...(date && { date }),
+          ...(timeStart && { timeStart }),
+          ...(timeEnd && { timeEnd }),
+          ...(location && { location }),
+          ...(team1 && { team1 }),
+          ...(team2 && { team2 })
+        },
+        previousData: {
+          status: existingMatch.status,
+          date: existingMatch.date,
+          timeStart: existingMatch.timeStart,
+          timeEnd: existingMatch.timeEnd,
+          location: existingMatch.location,
+          team1: existingMatch.team1,
+          team2: existingMatch.team2
+        }
+      },
+      request
     });
 
     return NextResponse.json({

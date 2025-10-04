@@ -45,6 +45,11 @@ export async function GET(request: NextRequest) {
       status: match.status,
       rawDate: match.date,
       rawTime: match.timeStart || '',
+      timeEnd: match.timeEnd || '',
+      homeScore: match.homeScore,
+      awayScore: match.awayScore,
+      team1: match.team1,
+      team2: match.team2,
     }));
 
     return NextResponse.json({
