@@ -37,6 +37,8 @@ function App() {
   const [banners, setBanners] = useState<Array<{id: string, url: string, filename: string}>>([]);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10); // แสดง 10 รายการต่อหน้า
   const sortWrapRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -189,8 +191,30 @@ function App() {
   const getUserRole = () => {
     if (!session?.user) return null;
     const role = (session.user as any).role;
+    const sportType = (session.user as any).sportType;
+    
     if (role === 'ADMIN') return 'Admin';
-    if (role === 'SPORT_MANAGER') return 'Sport Manager';
+    if (role === 'SPORT_MANAGER') {
+      // แปลงชื่อกีฬาเป็นภาษาอังกฤษพร้อม Manager
+      const sportNames: Record<string, string> = {
+        'FOOTBALL': 'Football Manager',
+        'BASKETBALL': 'Basketball Manager', 
+        'VOLLEYBALL': 'Volleyball Manager',
+        'BADMINTON': 'Badminton Manager',
+        'TABLE_TENNIS': 'Table Tennis Manager',
+        'TENNIS': 'Tennis Manager',
+        'SWIMMING': 'Swimming Manager',
+        'TRACK_FIELD': 'Track & Field Manager',
+        'SOCCER': 'Soccer Manager',
+        'FUTSAL': 'Futsal Manager',
+        'SEPAK_TAKRAW': 'Sepak Takraw Manager',
+        'PETANQUE': 'Petanque Manager',
+        'ESPORTS': 'E-Sports Manager',
+        'CHESS': 'Chess Manager',
+        'AQUATIC': 'Aquatic Manager'
+      };
+      return sportNames[sportType] || `${sportType} Manager`;
+    }
     if (role === 'EDITOR') return 'Editor';
     return role || null;
   };
@@ -335,6 +359,7 @@ function App() {
       }
     });
     setFilteredMatches(sorted);
+    setCurrentPage(1); // รีเซ็ตไปหน้าแรกเมื่อมีการเรียงลำดับหรือค้นหาใหม่
   }, [sortValue, matches, searchTerm]);
 
   useEffect(() => {
@@ -588,7 +613,13 @@ function App() {
                       <p>ไม่พบข้อมูลการแข่งขัน</p>
                     </div>
                   ) : (
-                    filteredMatches.slice(0, 5).map((ev, idx) => {
+                    (() => {
+                      // คำนวณข้อมูลสำหรับหน้าปัจจุบัน
+                      const startIndex = (currentPage - 1) * itemsPerPage;
+                      const endIndex = startIndex + itemsPerPage;
+                      const currentMatches = filteredMatches.slice(startIndex, endIndex);
+                      
+                      return currentMatches.map((ev, idx) => {
                       const matchStatus = getMatchStatus(ev);
                       return (
                         <div
@@ -663,9 +694,121 @@ function App() {
                     </div>
                   </div>
                       );
-                    })
+                    });
+                    })()
                   )}
                 </div>
+                
+                {/* Pagination */}
+                {filteredMatches.length > itemsPerPage && (
+                  <div className="flex justify-center items-center gap-2 mt-6 px-4">
+                    {/* Previous Button */}
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        currentPage === 1
+                          ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                          : 'bg-red-600 text-white hover:bg-red-700'
+                      }`}
+                    >
+                      ← ก่อนหน้า
+                    </button>
+
+                    {/* Page Numbers */}
+                    {(() => {
+                      const totalPages = Math.ceil(filteredMatches.length / itemsPerPage);
+                      const pages = [];
+                      
+                      // แสดงหน้าที่ 1
+                      if (totalPages > 0) {
+                        pages.push(
+                          <button
+                            key={1}
+                            onClick={() => setCurrentPage(1)}
+                            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                              currentPage === 1
+                                ? 'bg-red-600 text-white'
+                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            }`}
+                          >
+                            1
+                          </button>
+                        );
+                      }
+
+                      // แสดง ... ถ้าจำเป็น
+                      if (currentPage > 3) {
+                        pages.push(
+                          <span key="dots1" className="px-2 text-gray-400">...</span>
+                        );
+                      }
+
+                      // แสดงหน้าปัจจุบันและข้างเคียง
+                      for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+                        pages.push(
+                          <button
+                            key={i}
+                            onClick={() => setCurrentPage(i)}
+                            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                              currentPage === i
+                                ? 'bg-red-600 text-white'
+                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            }`}
+                          >
+                            {i}
+                          </button>
+                        );
+                      }
+
+                      // แสดง ... ถ้าจำเป็น
+                      if (currentPage < totalPages - 2) {
+                        pages.push(
+                          <span key="dots2" className="px-2 text-gray-400">...</span>
+                        );
+                      }
+
+                      // แสดงหน้าสุดท้าย
+                      if (totalPages > 1) {
+                        pages.push(
+                          <button
+                            key={totalPages}
+                            onClick={() => setCurrentPage(totalPages)}
+                            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                              currentPage === totalPages
+                                ? 'bg-red-600 text-white'
+                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            }`}
+                          >
+                            {totalPages}
+                          </button>
+                        );
+                      }
+
+                      return pages;
+                    })()}
+
+                    {/* Next Button */}
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredMatches.length / itemsPerPage)))}
+                      disabled={currentPage === Math.ceil(filteredMatches.length / itemsPerPage)}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        currentPage === Math.ceil(filteredMatches.length / itemsPerPage)
+                          ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                          : 'bg-red-600 text-white hover:bg-red-700'
+                      }`}
+                    >
+                      ถัดไป →
+                    </button>
+                  </div>
+                )}
+
+                {/* Page Info */}
+                {filteredMatches.length > 0 && (
+                  <div className="text-center text-gray-400 text-sm mt-4 px-4">
+                    แสดง {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, filteredMatches.length)} จาก {filteredMatches.length} รายการ
+                  </div>
+                )}
               </div>
 
               <div></div>
