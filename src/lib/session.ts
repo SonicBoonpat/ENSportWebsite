@@ -66,10 +66,7 @@ export const authOptions: NextAuthOptions = {
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        console.log('🔐 NextAuth authorize called with:', credentials?.email);
-        
         if (!credentials?.email || !credentials?.password) {
-          console.log('❌ Missing credentials');
           return null;
         }
 
@@ -89,26 +86,19 @@ export const authOptions: NextAuthOptions = {
           });
 
           if (!user) {
-            console.log('❌ User not found:', credentials.email);
             return null;
           }
 
-          console.log('✅ User found:', user.username, 'Role:', user.role);
-
           // ตรวจสอบว่า account ยัง active อยู่หรือไม่
           if (!user.isActive) {
-            console.log('❌ Account deactivated:', user.username);
             return null;
           }
 
           // ตรวจสอบ password ด้วย bcrypt
           const isValidPassword = await verifyPassword(credentials.password, user.password);
           if (!isValidPassword) {
-            console.log('❌ Invalid password for user:', user.username);
             return null;
           }
-
-          console.log('✅ Password verified for:', user.username);
 
           // อัปเดต lastLogin
           await prisma.user.update({
@@ -125,7 +115,6 @@ export const authOptions: NextAuthOptions = {
             sportType: user.sportType,
           };
           
-          console.log('✅ Returning user for session:', userForSession);
           return userForSession;
         } catch (error) {
           console.error('Authentication error:', error);
@@ -143,11 +132,6 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user, account }) {
       // เมื่อ user login ครั้งแรก
       if (user && account) {
-        console.log('🔑 JWT callback - Adding to token:', {
-          role: (user as any).role,
-          userId: user.id,
-          sportType: (user as any).sportType
-        });
         token.role = (user as any).role;
         token.userId = user.id;
         token.sportType = (user as any).sportType;
@@ -157,7 +141,7 @@ export const authOptions: NextAuthOptions = {
       // ตรวจสอบ token expiry
       if (token.loginTime && Date.now() - (token.loginTime as number) > sessionConfig.maxAge * 1000) {
         // Token หมดอายุ - ใน production ควร redirect ไป login
-        console.log('Token expired');
+        return {};
       }
 
       return token;
@@ -168,13 +152,6 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).id = token.userId as string;
         (session.user as any).role = token.role as string;
         (session.user as any).sportType = token.sportType as string;
-        
-        console.log('📋 Session callback - Final session:', {
-          id: token.userId,
-          role: token.role,
-          sportType: token.sportType,
-          email: session.user.email
-        });
       }
       return session;
     },
