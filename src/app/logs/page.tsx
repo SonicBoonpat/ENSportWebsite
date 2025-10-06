@@ -3,6 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import '../globals.css';
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
+import BackButton from '@/components/buttons/BackButton';
 
 interface ActivityLog {
   id: string;
@@ -110,10 +114,10 @@ export default function LogsPage() {
   // Get action color
   const getActionColor = (action: string): string => {
     if (action.includes('DELETE')) return 'text-red-400';
-    if (action.includes('CREATE') || action.includes('UPLOAD')) return 'text-green-400';
-    if (action.includes('UPDATE') || action.includes('SCORE')) return 'text-yellow-400';
-    if (action.includes('SEND')) return 'text-blue-400';
-    return 'text-gray-400';
+    if (action.includes('CREATE') || action.includes('UPLOAD')) return 'text-white';
+    if (action.includes('UPDATE') || action.includes('SCORE')) return 'text-amber-300';
+    if (action.includes('SEND')) return 'text-white/80';
+    return 'text-white/70';
   };
 
   if (status === 'loading') {
@@ -129,43 +133,24 @@ export default function LogsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black relative overflow-hidden">
-      {/* Background */}
-      <div className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-30">
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900"></div>
-      </div>
+    <div className="min-h-screen bg-gradient-to-b from-black via-black to-red-en/10 relative">
+      
 
       {/* Navigation */}
-      <nav className="relative z-10 bg-red-600 text-white py-4 px-6 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => router.back()}
-            className="text-2xl hover:text-red-200 transition-colors"
-          >
-            ←
-          </button>
-          <div className="text-sm font-medium">Admin</div>
-        </div>
-        
-        <div className="text-xl font-bold tracking-wider">
-          SYSTEM LOGS
-        </div>
-        
-        <div className="w-8"></div> {/* Spacer for centering */}
-      </nav>
+      <Navbar />
+      {/* Back Button */}
+      <BackButton />
 
       {/* Content */}
-      <div className="relative z-10 p-6">
-        <div className="bg-red-600/95 backdrop-blur-sm rounded-lg shadow-xl border border-red-500/50 overflow-hidden">
-          <div className="bg-red-700/80 px-6 py-4">
-            <h1 className="text-2xl font-bold text-white tracking-wide text-center">
-              Activity Logs
-            </h1>
+      <div className="relative z-10 px-4 sm:px-6 py-6">
+        <div className="bg-red-en-bg/80 backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden ring-1 ring-white/10">
+          <div className="bg-red-en px-5 sm:px-6 py-4 text-center">
+            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-wide">Activity Logs</h1>
           </div>
 
-          <div className="p-6">
+          <div className="px-5 sm:px-6 py-5">
             {/* Filters */}
-            <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-6">
               {/* Search */}
               <div className="flex-1">
                 <input
@@ -176,7 +161,7 @@ export default function LogsPage() {
                     setSearchTerm(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-white/60 focus:outline-none focus:border-white/60"
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/40"
                 />
               </div>
 
@@ -188,7 +173,7 @@ export default function LogsPage() {
                     setFilter(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="px-4 py-2 bg-white/10 border border-white/20 rounded text-white focus:outline-none focus:border-white/60"
+                  className="px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-white/40"
                 >
                   <option value="all" className="bg-gray-800">ทั้งหมด</option>
                   <option value="banner" className="bg-gray-800">Banner</option>
@@ -201,7 +186,7 @@ export default function LogsPage() {
               {/* Refresh */}
               <button
                 onClick={() => loadLogs(currentPage)}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors flex items-center gap-2"
+                className="px-4 py-3 bg-red-800 hover:bg-red-900 text-white rounded-xl transition-colors flex items-center gap-2"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -221,7 +206,7 @@ export default function LogsPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-white">
                     <thead>
-                      <tr className="border-b border-white/20">
+                      <tr className="border-b border-white/15 bg-white/5">
                         <th className="text-left py-3 px-4">เวลา</th>
                         <th className="text-left py-3 px-4">ผู้ใช้</th>
                         <th className="text-left py-3 px-4">บทบาท</th>
@@ -239,12 +224,12 @@ export default function LogsPage() {
                             {log.userName}
                           </td>
                           <td className="py-3 px-4 text-sm">
-                            <span className={`px-2 py-1 rounded text-xs ${
+                            <span className={`px-2 py-1 rounded text-xs ring-1 ${
                               log.userRole === 'ADMIN' 
-                                ? 'bg-red-600/30 text-red-300' 
+                                ? 'bg-red-600/20 text-red-300 ring-red-500/30' 
                                 : log.userRole === 'GUEST'
-                                ? 'bg-green-600/30 text-green-300'
-                                : 'bg-blue-600/30 text-blue-300'
+                                ? 'bg-white/10 text-white/70 ring-white/10'
+                                : 'bg-white/10 text-white/80 ring-white/10'
                             }`}>
                               {log.userRole === 'ADMIN' 
                                 ? 'Admin' 
@@ -273,7 +258,7 @@ export default function LogsPage() {
                     <button
                       onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                       disabled={currentPage === 1}
-                      className="px-3 py-2 bg-white/10 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20 transition-colors"
+                      className="px-3 py-2 rounded-xl text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors bg-red-800 hover:bg-red-900 disabled:bg-white/10"
                     >
                       ←
                     </button>
@@ -285,7 +270,7 @@ export default function LogsPage() {
                     <button
                       onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                       disabled={currentPage === totalPages}
-                      className="px-3 py-2 bg-white/10 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/20 transition-colors"
+                      className="px-3 py-2 rounded-xl text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors bg-red-800 hover:bg-red-900 disabled:bg-white/10"
                     >
                       →
                     </button>
@@ -300,6 +285,9 @@ export default function LogsPage() {
           </div>
         </div>
       </div>
+
+      {/* Footer */}
+      <Footer />
     </div>
   );
 }

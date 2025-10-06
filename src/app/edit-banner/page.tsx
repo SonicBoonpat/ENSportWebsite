@@ -1,9 +1,12 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import ConfirmModal from '@/components/ConfirmModal';
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
+import BackButton from '@/components/buttons/BackButton';
 import '../globals.css';
 
 interface BannerHistory {
@@ -33,6 +36,17 @@ export default function EditBannerPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const getUserRole = () => {
+    const role = (session?.user as any)?.role;
+    const sportType = (session?.user as any)?.sportType;
+    if (role === 'ADMIN') return 'Admin';
+    if (role === 'SPORT_MANAGER') return sportType ? `Sport Manager · ${sportType}` : 'Sport Manager';
+    return role || 'User';
+  };
+
   // Confirm Modal state
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -47,15 +61,15 @@ export default function EditBannerPage() {
     title: '',
     message: '',
     type: 'info',
-    onConfirm: () => {},
+    onConfirm: () => { },
     isLoading: false
   });
 
   // Helper functions for confirm modal
   const openConfirmModal = (
-    title: string, 
-    message: string, 
-    onConfirm: () => void, 
+    title: string,
+    message: string,
+    onConfirm: () => void,
     type: 'danger' | 'warning' | 'info' | 'success' = 'info',
     confirmText?: string
   ) => {
@@ -81,7 +95,7 @@ export default function EditBannerPage() {
   // ตรวจสอบสิทธิ์
   useEffect(() => {
     if (status === 'loading') return;
-    
+
     if (!session?.user) {
       router.push('/login');
       return;
@@ -145,7 +159,7 @@ export default function EditBannerPage() {
     }
 
     setSelectedFile(file);
-    
+
     // สร้าง preview
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -166,7 +180,7 @@ export default function EditBannerPage() {
     // ตั้งค่า canvas เป็นอัตราส่วน 16:5 ความละเอียดสูง
     const targetWidth = 1600; // ความกว้างสูง
     const targetHeight = 500;  // 16:5 ratio
-    
+
     canvas.width = targetWidth;
     canvas.height = targetHeight;
 
@@ -177,7 +191,7 @@ export default function EditBannerPage() {
     // วาดรูปที่ crop แล้วลงบน canvas ด้วยคุณภาพสูง
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    
+
     ctx.drawImage(
       image,
       cropData.x * scaleX,
@@ -274,15 +288,15 @@ export default function EditBannerPage() {
   const canDeleteBanner = (bannerUploadedBy?: string) => {
     const userRole = (session?.user as any)?.role;
     const userId = (session?.user as any)?.id;
-    
+
     if (userRole === 'ADMIN') {
       return true; // Admin ลบได้ทุก Banner
     }
-    
+
     if (userRole === 'SPORT_MANAGER' && bannerUploadedBy === userId) {
       return true; // Sport Manager ลบได้เฉพาะ Banner ที่ตัวเองอัปโหลด
     }
-    
+
     return false;
   };
 
@@ -344,20 +358,20 @@ export default function EditBannerPage() {
   // Image crop handler
   const handleImageLoad = () => {
     if (!imageRef.current) return;
-    
+
     const img = imageRef.current;
     const aspectRatio = 16 / 5;
-    
+
     // คำนวณขนาด crop box เริ่มต้น (80% ของความกว้าง)
     let cropWidth = img.width * 0.8;
     let cropHeight = cropWidth / aspectRatio;
-    
+
     // ถ้าสูงเกินไป ให้ปรับตามความสูง
     if (cropHeight > img.height * 0.8) {
       cropHeight = img.height * 0.8;
       cropWidth = cropHeight * aspectRatio;
     }
-    
+
     setCropData({
       x: (img.width - cropWidth) / 2,
       y: (img.height - cropHeight) / 2,
@@ -371,7 +385,7 @@ export default function EditBannerPage() {
     if (!cropData) return;
     e.preventDefault();
     setIsDragging(true);
-    
+
     const rect = imageRef.current?.getBoundingClientRect();
     if (rect) {
       setDragStart({
@@ -386,7 +400,7 @@ export default function EditBannerPage() {
     e.stopPropagation();
     setIsResizing(true);
     setResizeHandle(handle);
-    
+
     const rect = imageRef.current?.getBoundingClientRect();
     if (rect) {
       setDragStart({
@@ -398,37 +412,37 @@ export default function EditBannerPage() {
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!imageRef.current || !cropData) return;
-    
+
     const rect = imageRef.current.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
-    
+
     if (isResizing) {
       const aspectRatio = 16 / 5;
       let newCropData = { ...cropData };
-      
+
       // คำนวณขนาดใหม่ตาม handle ที่ลาก
       switch (resizeHandle) {
         case 'se': // มุมขวาล่าง
           const newWidth = Math.max(50, mouseX - cropData.x);
           const newHeight = newWidth / aspectRatio;
-          
+
           // จำกัดขอบเขต
           const maxWidth = imageRef.current.width - cropData.x;
           const maxHeight = imageRef.current.height - cropData.y;
-          
+
           if (newWidth <= maxWidth && newHeight <= maxHeight) {
             newCropData.width = newWidth;
             newCropData.height = newHeight;
           }
           break;
-          
+
         case 'nw': // มุมซ้ายบน
           const deltaX = dragStart.x - mouseX;
           const deltaY = dragStart.y - mouseY;
           const newW = cropData.width + deltaX;
           const newH = newW / aspectRatio;
-          
+
           if (newW >= 50 && cropData.x - deltaX >= 0 && cropData.y - (deltaY * newH / newW) >= 0) {
             newCropData.width = newW;
             newCropData.height = newH;
@@ -436,24 +450,24 @@ export default function EditBannerPage() {
             newCropData.y = cropData.y - (newH - cropData.height);
           }
           break;
-          
+
         case 'ne': // มุมขวาบน
           const newW2 = Math.max(50, mouseX - cropData.x);
           const newH2 = newW2 / aspectRatio;
           const deltaY2 = cropData.height - newH2;
-          
+
           if (newW2 <= imageRef.current.width - cropData.x && cropData.y + deltaY2 >= 0) {
             newCropData.width = newW2;
             newCropData.height = newH2;
             newCropData.y = cropData.y + deltaY2;
           }
           break;
-          
+
         case 'sw': // มุมซ้ายล่าง
           const deltaX3 = dragStart.x - mouseX;
           const newW3 = cropData.width + deltaX3;
           const newH3 = newW3 / aspectRatio;
-          
+
           if (newW3 >= 50 && cropData.x - deltaX3 >= 0 && newH3 <= imageRef.current.height - cropData.y) {
             newCropData.width = newW3;
             newCropData.height = newH3;
@@ -461,17 +475,17 @@ export default function EditBannerPage() {
           }
           break;
       }
-      
+
       setCropData(newCropData);
-      
+
     } else if (isDragging) {
       const newX = mouseX - dragStart.x;
       const newY = mouseY - dragStart.y;
-      
+
       // จำกัดขอบเขต
       const maxX = imageRef.current.width - cropData.width;
       const maxY = imageRef.current.height - cropData.height;
-      
+
       setCropData({
         ...cropData,
         x: Math.max(0, Math.min(maxX, newX)),
@@ -484,6 +498,17 @@ export default function EditBannerPage() {
     setIsDragging(false);
     setIsResizing(false);
     setResizeHandle('');
+  };
+
+  const handleEditSchedule = () => router.push('/edit-schedule');
+  const handleEditBanner = () => router.push('/edit-banner');
+  const handleLogs = () => router.push('/logs');
+  const handleLogout = async () => {
+    try {
+      await signOut({ callbackUrl: '/login' });
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   if (status === 'loading') {
@@ -500,50 +525,49 @@ export default function EditBannerPage() {
   const displayRole = userRole === 'ADMIN' ? 'Admin' : userRole === 'EDITOR' ? 'Editor' : 'Sport Manager';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 py-8 px-4">
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="bg-red-en rounded-2xl shadow-2xl p-6 mb-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-white">{displayRole}</h1>
-            <button
-              onClick={() => router.push('/')}
-              className="text-white hover:text-gray-300 transition-colors"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          <div className="text-center mt-4">
-            <h2 className="text-3xl font-bold text-white">EN SPORT</h2>
-          </div>
-        </div>
+    <div className="min-h-screen bg-gradient-to-b from-black via-black to-red-en/10 relative">
+
+      {/* Header */}
+      {/* Background */}
+      <div className="absolute inset-0 opacity-20 pointer-events-none -z-10">
+        <div className="absolute inset-0 bg-gradient-to-br from-red-en/20 via-black to-black"></div>
+      </div>
+
+      {/* Navigation */}
+      <Navbar />
+
+      {/* Back Button */}
+      <BackButton />
+
+      <div className="max-w-2xl mx-auto px-4 sm:px-0">
 
         {/* Banner Upload Section */}
-        <div className="bg-red-en rounded-2xl shadow-2xl p-8 mb-6">
-          <h2 className="text-2xl font-bold text-white text-center mb-6">Banner</h2>
-          
-          <div className="space-y-4">
+        <div className="bg-red-en-bg/80 backdrop-blur-sm rounded-2xl shadow-2xl ring-1 ring-white/10 overflow-hidden mb-6">
+          <div className="bg-red-en px-5 sm:px-6 py-4 text-center">
+            <h2 className="text-xl sm:text-2xl font-bold text-white tracking-wide">Banner</h2>
+            <p className="text-white/80 text-xs sm:text-sm mt-1">อัปโหลดภาพอัตราส่วน 16:5 (PNG / JPG)</p>
+          </div>
+
+          <div className="px-5 sm:px-6 py-5 sm:py-6 space-y-4">
             <div>
-              <label className="block text-white text-lg mb-2">เลือกไฟล์:</label>
+              <label className="block text-white text-sm sm:text-base font-medium mb-2">เลือกไฟล์</label>
               <input
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
                 onChange={handleFileSelect}
                 disabled={isUploading}
-                className="w-full px-4 py-3 bg-red-en-bg text-white rounded-lg border border-white/20 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-white/20 file:text-white hover:file:bg-white/30 cursor-pointer disabled:opacity-50"
+                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/40 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-white/20 file:text-white hover:file:bg-white/30 cursor-pointer disabled:opacity-50"
               />
-              <p className="text-sm text-white/70 mt-2">ratio 16:5 file type: png, jpg</p>
+              <p className="text-xs text-white/70 mt-2">รองรับสูงสุด 10MB</p>
             </div>
 
             {showCropper && previewUrl && (
               <div className="space-y-4">
-                <div className="text-white text-sm mb-2 text-center">
-                  🎯 <strong>วิธีใช้:</strong> ลากกรอบเพื่อเลื่อน | ลากมุมสีน้ำเงินเพื่อขยาย-ย่อ (อัตราส่วน 16:5)
+                <div className="text-white/90 text-xs sm:text-sm mb-2 text-center">
+                  <strong>วิธีใช้:</strong> ลากกรอบเพื่อเลื่อน | ลากมุม <span className="text-red-300">สีแดง</span> เพื่อปรับขนาด (อัตราส่วน 16:5)
                 </div>
-                <div 
+                <div
                   className="relative bg-black rounded-lg overflow-hidden select-none"
                   onMouseMove={handleMouseMove}
                   onMouseUp={handleMouseUp}
@@ -557,99 +581,38 @@ export default function EditBannerPage() {
                     className="w-full h-auto max-h-96 object-contain"
                     draggable={false}
                   />
-                  
+
                   {/* Dark overlay outside crop area */}
                   {cropData && (
                     <>
-                      {/* Top overlay */}
-                      <div 
-                        className="absolute top-0 left-0 right-0 bg-black/70"
-                        style={{ height: cropData.y }}
-                      />
-                      {/* Bottom overlay */}
-                      <div 
-                        className="absolute left-0 right-0 bottom-0 bg-black/70"
-                        style={{ 
-                          top: cropData.y + cropData.height,
-                        }}
-                      />
-                      {/* Left overlay */}
-                      <div 
-                        className="absolute left-0 bg-black/70"
-                        style={{ 
-                          top: cropData.y,
-                          width: cropData.x,
-                          height: cropData.height
-                        }}
-                      />
-                      {/* Right overlay */}
-                      <div 
-                        className="absolute right-0 bg-black/70"
-                        style={{ 
-                          top: cropData.y,
-                          left: cropData.x + cropData.width,
-                          height: cropData.height
-                        }}
-                      />
+                      <div className="absolute top-0 left-0 right-0 bg-black/70" style={{ height: cropData.y }} />
+                      <div className="absolute left-0 right-0 bottom-0 bg-black/70" style={{ top: cropData.y + cropData.height }} />
+                      <div className="absolute left-0 bg-black/70" style={{ top: cropData.y, width: cropData.x, height: cropData.height }} />
+                      <div className="absolute right-0 bg-black/70" style={{ top: cropData.y, left: cropData.x + cropData.width, height: cropData.height }} />
                     </>
                   )}
-                  
+
                   {/* Crop Selection Box */}
                   {cropData && (
                     <div
-                      className={`absolute border-2 ${
-                        isDragging ? 'border-yellow-400' : isResizing ? 'border-blue-400' : 'border-white'
-                      } transition-colors duration-150`}
-                      style={{
-                        left: cropData.x,
-                        top: cropData.y,
-                        width: cropData.width,
-                        height: cropData.height,
-                        cursor: isDragging ? 'grabbing' : 'grab',
-                      }}
+                      className={`absolute border-2 ${isDragging ? 'border-amber-400' : isResizing ? 'border-red-400' : 'border-white'} transition-colors duration-150`}
+                      style={{ left: cropData.x, top: cropData.y, width: cropData.width, height: cropData.height, cursor: isDragging ? 'grabbing' : 'grab' }}
                       onMouseDown={handleMouseDown}
                     >
-                      {/* Grid lines - 3x3 */}
-                      {/* Vertical lines */}
-                      <div 
-                        className="absolute top-0 bottom-0 border-l border-white/50"
-                        style={{ left: '33.333%' }}
-                      />
-                      <div 
-                        className="absolute top-0 bottom-0 border-l border-white/50"
-                        style={{ left: '66.666%' }}
-                      />
-                      
-                      {/* Horizontal lines */}
-                      <div 
-                        className="absolute left-0 right-0 border-t border-white/50"
-                        style={{ top: '33.333%' }}
-                      />
-                      <div 
-                        className="absolute left-0 right-0 border-t border-white/50"
-                        style={{ top: '66.666%' }}
-                      />
-                      
-                      {/* Resize handles - Corner เท่านั้น */}
-                      <div 
-                        className="absolute -top-2 -left-2 w-4 h-4 bg-white border-2 border-blue-500 rounded-full cursor-nw-resize hover:bg-blue-100"
-                        onMouseDown={(e) => handleResizeMouseDown(e, 'nw')}
-                      />
-                      <div 
-                        className="absolute -top-2 -right-2 w-4 h-4 bg-white border-2 border-blue-500 rounded-full cursor-ne-resize hover:bg-blue-100"
-                        onMouseDown={(e) => handleResizeMouseDown(e, 'ne')}
-                      />
-                      <div 
-                        className="absolute -bottom-2 -left-2 w-4 h-4 bg-white border-2 border-blue-500 rounded-full cursor-sw-resize hover:bg-blue-100"
-                        onMouseDown={(e) => handleResizeMouseDown(e, 'sw')}
-                      />
-                      <div 
-                        className="absolute -bottom-2 -right-2 w-4 h-4 bg-white border-2 border-blue-500 rounded-full cursor-se-resize hover:bg-blue-100"
-                        onMouseDown={(e) => handleResizeMouseDown(e, 'se')}
-                      />
-                      
+                      {/* Grid lines */}
+                      <div className="absolute top-0 bottom-0 border-l border-white/50" style={{ left: '33.333%' }} />
+                      <div className="absolute top-0 bottom-0 border-l border-white/50" style={{ left: '66.666%' }} />
+                      <div className="absolute left-0 right-0 border-t border-white/50" style={{ top: '33.333%' }} />
+                      <div className="absolute left-0 right-0 border-t border-white/50" style={{ top: '66.666%' }} />
+
+                      {/* Corner handles (red theme) */}
+                      <div className="absolute -top-2 -left-2 w-4 h-4 bg-white border-2 border-red-500 rounded-full cursor-nw-resize hover:bg-red-100" onMouseDown={(e) => handleResizeMouseDown(e, 'nw')} />
+                      <div className="absolute -top-2 -right-2 w-4 h-4 bg-white border-2 border-red-500 rounded-full cursor-ne-resize hover:bg-red-100" onMouseDown={(e) => handleResizeMouseDown(e, 'ne')} />
+                      <div className="absolute -bottom-2 -left-2 w-4 h-4 bg-white border-2 border-red-500 rounded-full cursor-sw-resize hover:bg-red-100" onMouseDown={(e) => handleResizeMouseDown(e, 'sw')} />
+                      <div className="absolute -bottom-2 -right-2 w-4 h-4 bg-white border-2 border-red-500 rounded-full cursor-se-resize hover:bg-red-100" onMouseDown={(e) => handleResizeMouseDown(e, 'se')} />
+
                       {/* Ratio indicator */}
-                      <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded">
+                      <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded">
                         16:5 {isResizing && '(Resizing)'}
                       </div>
                     </div>
@@ -662,96 +625,93 @@ export default function EditBannerPage() {
             <button
               onClick={handleCrop}
               disabled={!showCropper || confirmModal.isLoading}
-              className="w-full bg-red-en-bg text-white py-3 px-6 rounded-lg font-semibold hover:bg-white/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-red-800 hover:bg-red-900 disabled:bg-red-800/50 text-white font-bold py-3.5 sm:py-4 px-6 rounded-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-red-300/50 active:scale-[0.99]"
             >
-              {confirmModal.isLoading ? 'กำลังอัปโหลด...' : 'update'}
+              {confirmModal.isLoading ? 'กำลังอัปโหลด...' : 'Update Banner'}
             </button>
           </div>
-
-          {/* Message Display - ลบออกแล้วเพราะใช้ Modal แทน */}
         </div>
 
         {/* History Section */}
-        <div className="bg-red-en rounded-2xl shadow-2xl p-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-white">History</h2>
-            <button
-              onClick={loadHistory}
-              className="text-white hover:text-red-300 transition-colors"
-              title="Refresh"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            </button>
+        <div className="bg-red-en-bg/80 backdrop-blur-sm rounded-2xl shadow-2xl ring-1 ring-white/10 overflow-hidden">
+          <div className="bg-red-en px-5 sm:px-6 py-4 text-center">
+            <div className="flex items-center justify-between max-w-2xl mx-auto">
+              <h2 className="text-xl sm:text-2xl font-bold text-white tracking-wide">History</h2>
+              <button
+                onClick={loadHistory}
+                className="text-white/90 hover:text-white transition-colors"
+                title="Refresh"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            </div>
           </div>
 
-          {isLoadingHistory ? (
-            <div className="text-center text-white py-8">
-              <div className="animate-spin inline-block w-8 h-8 border-4 border-white border-t-transparent rounded-full"></div>
-              <p className="mt-2">กำลังโหลด...</p>
-            </div>
-          ) : history.length === 0 ? (
-            <div className="text-center text-white/70 py-8">
-              <p>ยังไม่มีประวัติการอัปโหลด</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {history.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between bg-red-en-bg rounded-lg p-4"
-                >
-                  <div className="flex items-center gap-4 flex-1">
-                    <div 
-                      className="w-16 h-10 bg-white/10 rounded flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors overflow-hidden"
-                      onClick={() => setSelectedImage(item.url)}
-                    >
-                      <img 
-                        src={item.url} 
-                        alt={item.filename}
-                        className="w-full h-full object-cover rounded"
-                      />
+          <div className="px-5 sm:px-6 py-5 sm:py-6">
+            {isLoadingHistory ? (
+              <div className="text-center text-white py-8">
+                <div className="animate-spin inline-block w-8 h-8 border-4 border-white border-t-transparent rounded-full"></div>
+                <p className="mt-2">กำลังโหลด...</p>
+              </div>
+            ) : history.length === 0 ? (
+              <div className="text-center text-white/70 py-8">
+                <p>ยังไม่มีประวัติการอัปโหลด</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {history.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between bg-red-en-bg/60 ring-1 ring-white/10 rounded-xl p-4 gap-3">
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                      <button
+                        className="w-16 h-10 bg-white/10 rounded flex items-center justify-center hover:bg-white/20 transition-colors overflow-hidden"
+                        onClick={() => setSelectedImage(item.url)}
+                        title="Preview"
+                      >
+                        <img src={item.url} alt={item.filename} className="w-full h-full object-cover rounded" />
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white font-medium truncate max-w-full">{item.filename}</p>
+                        <p className="text-white/60 text-sm truncate">{item.uploadedAt}</p>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <p className="text-white font-medium">{item.filename}</p>
-                      <p className="text-white/60 text-sm">{item.uploadedAt}</p>
-                    </div>
+                    {canDeleteBanner(item.uploadedBy) && (
+                      <button
+                        onClick={() => handleDelete(item.id, item.filename)}
+                        className="text-red-300 hover:text-red-200 transition-colors p-2 shrink-0"
+                        title="Delete"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
-                  {canDeleteBanner(item.uploadedBy) && (
-                    <button
-                      onClick={() => handleDelete(item.id, item.filename)}
-                      className="text-red-300 hover:text-red-100 transition-colors p-2"
-                      title="Delete"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Image Preview Modal */}
       {selectedImage && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
           onClick={() => setSelectedImage(null)}
         >
           <div className="relative max-w-4xl max-h-full">
-            <img 
-              src={selectedImage} 
+            <img
+              src={selectedImage}
               alt="Banner Preview"
               className="max-w-full max-h-full object-contain rounded-lg"
               onClick={(e) => e.stopPropagation()}
             />
             <button
               onClick={() => setSelectedImage(null)}
-              className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+              className="absolute -top-2 -right-2 w-8 h-8 bg-red-en text-white rounded-full flex items-center justify-center hover:bg-red-800 transition-colors"
+              aria-label="Close preview"
             >
               ✕
             </button>
@@ -770,6 +730,9 @@ export default function EditBannerPage() {
         confirmText={confirmModal.confirmText}
         isLoading={confirmModal.isLoading}
       />
+
+      {/* Footer */}
+      <Footer />
     </div>
   );
 }

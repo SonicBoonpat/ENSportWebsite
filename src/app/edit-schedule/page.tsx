@@ -1,9 +1,13 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import ConfirmModal from '@/components/ConfirmModal';
+import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
+import BackButton from '@/components/buttons/BackButton';
+import '../globals.css';
 
 interface Match {
   id: string;
@@ -32,7 +36,10 @@ export default function EditSchedulePage() {
   const [sortOpen, setSortOpen] = useState(false);
   const [sortValue, setSortValue] = useState<'earliest' | 'latest'>('earliest');
   const sortRef = useRef<HTMLDivElement>(null);
-  
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
   // Result form states
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [resultForm, setResultForm] = useState({
@@ -40,7 +47,7 @@ export default function EditSchedulePage() {
     awayScore: '',
     winner: ''
   });
-  
+
   // Confirm Modal states
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -55,10 +62,10 @@ export default function EditSchedulePage() {
     title: '',
     message: '',
     type: 'info',
-    onConfirm: () => {},
+    onConfirm: () => { },
     isLoading: false
   });
-  
+
   const [formData, setFormData] = useState({
     date: '',
     timeStart: '',
@@ -71,9 +78,9 @@ export default function EditSchedulePage() {
 
   // Helper functions for confirm modal
   const openConfirmModal = (
-    title: string, 
-    message: string, 
-    onConfirm: () => void, 
+    title: string,
+    message: string,
+    onConfirm: () => void,
     type: 'danger' | 'warning' | 'info' | 'success' = 'info',
     confirmText?: string
   ) => {
@@ -127,14 +134,14 @@ export default function EditSchedulePage() {
     } catch (error) {
       console.error('Error getting server time:', error);
     }
-    
+
     // Fallback to client time if server time fails
     const now = new Date();
     const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-    const currentDate = now.getFullYear() + '-' + 
-                       (now.getMonth() + 1).toString().padStart(2, '0') + '-' + 
-                       now.getDate().toString().padStart(2, '0');
-    
+    const currentDate = now.getFullYear() + '-' +
+      (now.getMonth() + 1).toString().padStart(2, '0') + '-' +
+      now.getDate().toString().padStart(2, '0');
+
     return {
       currentDate,
       currentTime,
@@ -152,19 +159,19 @@ export default function EditSchedulePage() {
     for (const match of matches) {
       if (match.timeStart && match.timeEnd) {
         const matchDate = new Date(match.date).toISOString().split('T')[0];
-        
+
         // ตรวจสอบสถานะปัจจุบัน
         const isToday = matchDate === currentDate;
         const isDatePassed = matchDate < currentDate;
-        
+
         if (isToday) {
           // ถ้าเป็นวันเดียวกัน ตรวจสอบเวลา
           const isBeforeStart = currentTime < match.timeStart;
           const isDuringMatch = currentTime >= match.timeStart && currentTime <= match.timeEnd;
           const isAfterEnd = currentTime > match.timeEnd;
-          
+
           let newStatus: 'SCHEDULED' | 'ONGOING' | 'PENDING_RESULT' | 'COMPLETED' | null = null;
-          
+
           if (match.status === 'SCHEDULED' && isDuringMatch) {
             newStatus = 'ONGOING';
           } else if (match.status === 'ONGOING' && isAfterEnd) {
@@ -173,7 +180,7 @@ export default function EditSchedulePage() {
             // กรณีที่ข้ามสถานะ ONGOING (เช่น server ไม่ได้ check ตอนกำลังแข่ง)
             newStatus = 'PENDING_RESULT';
           }
-          
+
           if (newStatus && newStatus !== match.status) {
             try {
               const success = await updateMatchStatus(match.id, newStatus, false);
@@ -227,8 +234,12 @@ export default function EditSchedulePage() {
   // Close sort dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (sortRef.current && !sortRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (sortRef.current && !sortRef.current.contains(target)) {
         setSortOpen(false);
+      }
+      if (menuRef.current && !menuRef.current.contains(target)) {
+        setMenuOpen(false);
       }
     };
 
@@ -243,30 +254,38 @@ export default function EditSchedulePage() {
     return sportType || 'Unknown Sport';
   };
 
+  const getUserRole = () => {
+    const role = (session?.user as any)?.role;
+    const sportType = (session?.user as any)?.sportType;
+    if (role === 'ADMIN') return 'Admin';
+    if (role === 'SPORT_MANAGER') return sportType ? `Sport Manager · ${sportType}` : 'Sport Manager';
+    return role || 'User';
+  };
+
   // ฟังก์ชัน sort matches
   const sortMatches = (matchesToSort: Match[], sortType: 'earliest' | 'latest') => {
     return [...matchesToSort].sort((a: Match, b: Match) => {
       const dateA = new Date(a.date);
       const dateB = new Date(b.date);
-      
+
       // First sort by date
       if (dateA.getTime() !== dateB.getTime()) {
-        return sortType === 'earliest' 
+        return sortType === 'earliest'
           ? dateA.getTime() - dateB.getTime()  // earliest: เก่า → ใหม่
           : dateB.getTime() - dateA.getTime(); // latest: ใหม่ → เก่า
       }
-      
+
       // If same date, sort by time
       const timeA = a.timeStart || a.time || '00:00';
       const timeB = b.timeStart || b.time || '00:00';
-      
+
       // Create comparable time values
       const [hoursA, minutesA] = timeA.split(':').map(Number);
       const [hoursB, minutesB] = timeB.split(':').map(Number);
-      
+
       const timeValueA = hoursA * 60 + minutesA;
       const timeValueB = hoursB * 60 + minutesB;
-      
+
       return sortType === 'earliest'
         ? timeValueA - timeValueB  // earliest: เวลาน้อย → มาก (ใกล้จะแข่งขึ้นก่อน)
         : timeValueB - timeValueA; // latest: เวลามาก → น้อย (ไกลที่สุดขึ้นก่อน)
@@ -276,7 +295,7 @@ export default function EditSchedulePage() {
   const chooseSort = (val: 'earliest' | 'latest') => {
     setSortValue(val);
     setSortOpen(false);
-    
+
     // Apply sort to current matches
     const sortedMatches = sortMatches(matches, val);
     setMatches(sortedMatches);
@@ -286,18 +305,18 @@ export default function EditSchedulePage() {
     try {
       const userRole = (session?.user as any)?.role;
       const sportType = (session?.user as any)?.sportType;
-      
+
       // Admin ดูข้อมูลทุกกีฬา, Sport Manager ดูเฉพาะกีฬาของตัวเอง
       const apiUrl = userRole === 'ADMIN' ? '/api/matches' : `/api/matches?sport=${sportType}`;
       console.log('Loading matches for:', userRole === 'ADMIN' ? 'all sports' : sportType);
-      
+
       const response = await fetch(apiUrl);
       console.log('API Response status:', response.status);
-      
+
       if (response.ok) {
         const data = await response.json();
         console.log('Matches data:', data);
-        
+
         // Sort matches using the current sort value
         const sortedMatches = sortMatches(data.matches || [], sortValue);
         setMatches(sortedMatches);
@@ -325,39 +344,51 @@ export default function EditSchedulePage() {
     }
   };
 
+  // Menu actions
+  const handleEditSchedule = () => router.push('/edit-schedule');
+  const handleEditBanner = () => router.push('/edit-banner');
+  const handleLogs = () => router.push('/logs');
+  const handleLogout = async () => {
+    try {
+      await signOut({ callbackUrl: '/login' });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    
+
     // Format time inputs
     if (name === 'timeStart' || name === 'timeEnd') {
       let formattedValue = value;
-      
+
       // Remove any non-digit and non-colon characters
       formattedValue = formattedValue.replace(/[^\d:]/g, '');
-      
+
       // Auto-add colon after 2 digits
       if (formattedValue.length === 2 && !formattedValue.includes(':')) {
         formattedValue += ':';
       }
-      
+
       // Limit to HH:MM format
       if (formattedValue.length > 5) {
         formattedValue = formattedValue.slice(0, 5);
       }
-      
+
       // Validate hours (00-23)
       const parts = formattedValue.split(':');
       if (parts[0] && parseInt(parts[0]) > 23) {
         parts[0] = '23';
         formattedValue = parts.join(':');
       }
-      
+
       // Validate minutes (00-59)
       if (parts[1] && parseInt(parts[1]) > 59) {
         parts[1] = '59';
         formattedValue = parts.join(':');
       }
-      
+
       setFormData(prev => ({
         ...prev,
         [name]: formattedValue
@@ -372,7 +403,7 @@ export default function EditSchedulePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // เปิด Modal ยืนยันการบันทึก
     openConfirmModal(
       'ยืนยันการบันทึกข้อมูล',
@@ -381,7 +412,7 @@ export default function EditSchedulePage() {
         setConfirmLoading(true);
         try {
           const sportType = (session?.user as any)?.sportType;
-          
+
           const response = await fetch('/api/matches', {
             method: 'POST',
             headers: {
@@ -529,8 +560,8 @@ export default function EditSchedulePage() {
     e.preventDefault();
     if (!selectedMatch) return;
 
-    const winnerText = resultForm.winner === 'team1' ? selectedMatch.team1 : 
-                      resultForm.winner === 'team2' ? selectedMatch.team2 : 'เสมอ';
+    const winnerText = resultForm.winner === 'team1' ? selectedMatch.team1 :
+      resultForm.winner === 'team2' ? selectedMatch.team2 : 'เสมอ';
 
     // เปิด Modal ยืนยันการบันทึกผล
     openConfirmModal(
@@ -742,207 +773,188 @@ export default function EditSchedulePage() {
   }
 
   return (
-    <div className="min-h-screen bg-black relative overflow-hidden">
-      {/* Background */}
-      <div className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-30">
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900"></div>
-      </div>
+    <div className="min-h-screen bg-gradient-to-b from-black via-black to-red-en/10 relative">
 
       {/* Navigation */}
-      <nav className="relative z-10 bg-red-600 text-white py-4 px-6 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => router.back()}
-            className="text-2xl hover:text-red-200 transition-colors"
-          >
-            ←
-          </button>
-          <div className="text-sm font-medium">
-            {(session.user as any).role === 'ADMIN' ? 'Admin' : 'Sport Manager'}
-          </div>
-        </div>
-        
-        <div className="text-xl font-bold tracking-wider">
-          EN SPORT
-        </div>
-        
-        <div className="w-8"></div> {/* Spacer for centering */}
-      </nav>
+      <Navbar />
+
+      {/* Back Button */}
+      <BackButton />
 
       {/* Content */}
-      <div className="relative z-10 p-6 space-y-6">
+      <div className="relative z-10 py-3 px-6 space-y-6 ">
         {/* Schedule Form - แสดงเฉพาะ Sport Manager */}
         {(session.user as any).role === 'SPORT_MANAGER' && (
-          <div className="bg-red-600/95 backdrop-blur-sm rounded-lg shadow-xl border border-red-500/50 overflow-hidden">
-            <div className="bg-red-700/80 px-6 py-4 text-center">
-              <h2 className="text-2xl font-bold text-white tracking-wide">
+          <div className="bg-[#770A12]/50 backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden ring-1 ring-white/10">
+            <div className="bg-red-en px-5 sm:px-6 py-4 text-center">
+              <h2 className="text-xl sm:text-2xl font-bold text-white tracking-wide">
                 {getSportName()} Schedule
               </h2>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-            {/* Message Display - ลบออกแล้วเพราะใช้ Modal แทน */}
-            {/* วันที่และเวลา */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-white font-medium text-sm mb-2">
-                  วันที่:
-                </label>
-                <input
-                  type="date"
-                  name="date"
-                  value={formData.date}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-white/60 focus:outline-none focus:border-white/60"
-                  required
-                />
+            <form onSubmit={handleSubmit} className="px-5 sm:px-6 py-5 sm:py-6 space-y-4">
+              {/* Message Display - ลบออกแล้วเพราะใช้ Modal แทน */}
+              {/* วันที่และเวลา */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-white font-medium text-sm mb-2">
+                    วันที่:
+                  </label>
+                  <input
+                    type="date"
+                    name="date"
+                    value={formData.date}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/40"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-white font-medium text-sm mb-2">
+                    เวลาเริ่ม:
+                  </label>
+                  <input
+                    type="text"
+                    name="timeStart"
+                    value={formData.timeStart}
+                    onChange={handleInputChange}
+                    pattern="^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
+                    title="กรุณาใส่เวลาในรูปแบบ HH:MM (เช่น 14:30 หรือ 22:30)"
+                    placeholder="22:30"
+                    maxLength={5}
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/40"
+                    required
+                  />
+                  <div className="text-xs text-white/60 mt-1">รูปแบบ: HH:MM (00:00 - 23:59)</div>
+                </div>
+                <div>
+                  <label className="block text-white font-medium text-sm mb-2">
+                    เวลาจบ:
+                  </label>
+                  <input
+                    type="text"
+                    name="timeEnd"
+                    value={formData.timeEnd}
+                    onChange={handleInputChange}
+                    pattern="^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
+                    title="กรุณาใส่เวลาในรูปแบบ HH:MM (เช่น 16:00 หรือ 23:45)"
+                    placeholder="23:45"
+                    maxLength={5}
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/40"
+                    required
+                  />
+                  <div className="text-xs text-white/60 mt-1">รูปแบบ: HH:MM (00:00 - 23:59)</div>
+                </div>
               </div>
+
+              {/* สถานที่ */}
               <div>
                 <label className="block text-white font-medium text-sm mb-2">
-                  เวลาเริ่ม:
-                </label>
-                <input
-                  type="text"
-                  name="timeStart"
-                  value={formData.timeStart}
-                  onChange={handleInputChange}
-                  pattern="^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
-                  title="กรุณาใส่เวลาในรูปแบบ HH:MM (เช่น 14:30 หรือ 22:30)"
-                  placeholder="22:30"
-                  maxLength={5}
-                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-white/60 focus:outline-none focus:border-white/60"
-                  required
-                />
-                <div className="text-xs text-white/60 mt-1">รูปแบบ: HH:MM (00:00 - 23:59)</div>
-              </div>
-              <div>
-                <label className="block text-white font-medium text-sm mb-2">
-                  เวลาจบ:
-                </label>
-                <input
-                  type="text"
-                  name="timeEnd"
-                  value={formData.timeEnd}
-                  onChange={handleInputChange}
-                  pattern="^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
-                  title="กรุณาใส่เวลาในรูปแบบ HH:MM (เช่น 16:00 หรือ 23:45)"
-                  placeholder="23:45"
-                  maxLength={5}
-                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-white/60 focus:outline-none focus:border-white/60"
-                  required
-                />
-                <div className="text-xs text-white/60 mt-1">รูปแบบ: HH:MM (00:00 - 23:59)</div>
-              </div>
-            </div>
-
-            {/* สถานที่ */}
-            <div>
-              <label className="block text-white font-medium text-sm mb-2">
-                สถานที่:
-              </label>
-              <input
-                type="text"
-                name="location"
-                value={formData.location}
-                onChange={handleInputChange}
-                placeholder="Stadium"
-                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-white/60 focus:outline-none focus:border-white/60"
-                required
-              />
-            </div>
-
-            {/* Maps Link */}
-            <div>
-              <label className="block text-white font-medium text-sm mb-2">
-                Maps:
-              </label>
-              <input
-                type="url"
-                name="mapsLink"
-                value={formData.mapsLink}
-                onChange={handleInputChange}
-                placeholder="Link"
-                className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-white/60 focus:outline-none focus:border-white/60"
-                required
-              />
-            </div>
-
-            {/* Teams */}
-            <div className="space-y-4">
-              <div>
-                <label className="block text-white font-medium text-sm mb-2">
-                  คณะ/สาขา:
+                  สถานที่:
                 </label>
                 <input
                   type="text"
-                  name="team1"
-                  value={formData.team1}
+                  name="location"
+                  value={formData.location}
                   onChange={handleInputChange}
-                  placeholder="ตัวย่อ"
-                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-white/60 focus:outline-none focus:border-white/60"
+                  placeholder="Stadium"
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/40"
                   required
                 />
               </div>
 
-              <div className="text-center text-white font-bold text-xl">
-                VS
-              </div>
-
+              {/* Maps Link */}
               <div>
                 <label className="block text-white font-medium text-sm mb-2">
-                  คณะ/สาขา:
+                  Maps:
                 </label>
                 <input
-                  type="text"
-                  name="team2"
-                  value={formData.team2}
+                  type="url"
+                  name="mapsLink"
+                  value={formData.mapsLink}
                   onChange={handleInputChange}
-                  placeholder="ตัวย่อ"
-                  className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-white/60 focus:outline-none focus:border-white/60"
+                  placeholder="Link"
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/40"
                   required
                 />
               </div>
-            </div>
 
-            {/* Submit Button */}
-            <div className="pt-4">
-              <button
-                type="submit"
-                disabled={confirmModal.isLoading}
-                className="w-full bg-red-800 hover:bg-red-900 disabled:bg-red-800/50 text-white font-bold py-3 px-6 rounded transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-red-300/50"
-              >
-                {confirmModal.isLoading ? 'กำลังบันทึก...' : 'save'}
-              </button>
-            </div>
-          </form>
-        </div>
+              {/* Teams */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-white font-medium text-sm mb-2">
+                    คณะ/สาขา:
+                  </label>
+                  <input
+                    type="text"
+                    name="team1"
+                    value={formData.team1}
+                    onChange={handleInputChange}
+                    placeholder="ตัวย่อ"
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/40"
+                    required
+                  />
+                </div>
+
+                <div className="text-center text-white font-bold text-xl">
+                  VS
+                </div>
+
+                <div>
+                  <label className="block text-white font-medium text-sm mb-2">
+                    คณะ/สาขา:
+                  </label>
+                  <input
+                    type="text"
+                    name="team2"
+                    value={formData.team2}
+                    onChange={handleInputChange}
+                    placeholder="ตัวย่อ"
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/40"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <div className="pt-4">
+                <button
+                  type="submit"
+                  disabled={confirmModal.isLoading}
+                  className="w-full bg-red-en hover:bg-red-900 disabled:bg-red-800/50 text-white font-bold py-3.5 sm:py-4 px-6 rounded-xl transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-red-300/50 active:scale-[0.99]"
+                >
+                  {confirmModal.isLoading ? 'กำลังบันทึก...' : 'Save'}
+                </button>
+              </div>
+            </form>
+          </div>
         )}
 
         {/* Time Table */}
-        <div className="bg-red-600/95 backdrop-blur-sm rounded-lg shadow-xl border border-red-500/50 overflow-hidden">
-          <div className="bg-red-700/80 px-6 py-4 text-center">
-            <h3 className="text-xl font-bold text-white tracking-wide">
+        <div className="bg-red-en-bg/80 backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden ring-1 ring-white/10">
+          <div className="bg-red-en px-5 sm:px-6 py-4 text-center">
+            <h3 className="text-lg sm:text-xl font-bold text-white tracking-wide">
               {(session.user as any).role === 'ADMIN' ? 'All Sports Schedule Management' : `${getSportName()} Time Table`}
             </h3>
           </div>
 
           <div className="p-6">
             {/* Search Bar */}
-            <div className="flex justify-between items-center mb-4">
-              <div className="flex items-center gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                 <input
                   type="text"
                   placeholder="Search..."
-                  className="px-3 py-2 bg-white/10 border border-white/20 rounded text-white placeholder-white/60 focus:outline-none focus:border-white/60"
+                  className="px-4 py-2.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/40"
                 />
                 <div className="text-sm text-white/60">
-                  🔄 ระบบจะอัพเดตสถานะอัตโนมัติทุก 30 วินาที
+                  ระบบจะอัพเดตสถานะอัตโนมัติทุก 30 วินาที
                 </div>
               </div>
               <div className="flex gap-2">
-                <button 
+                <button
                   onClick={loadMatches}
-                  className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors flex items-center gap-2"
+                  className="px-3 py-2 bg-red-en-bg hover:bg-blue-700 text-white text-sm rounded transition-colors flex items-center gap-2"
                   title="รีเฟรชข้อมูล"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -950,31 +962,29 @@ export default function EditSchedulePage() {
                   </svg>
                   Refresh
                 </button>
-                
+
                 {/* Sort Dropdown */}
                 <div className="relative" ref={sortRef}>
-                  <button 
+                  <button
                     onClick={() => setSortOpen(!sortOpen)}
                     className="text-white hover:text-red-200 transition-colors flex items-center gap-1"
                   >
                     Sort: {sortValue === 'earliest' ? 'Earliest' : 'Latest'} ⌄
                   </button>
-                  
+
                   {sortOpen && (
                     <div className="absolute right-0 top-full mt-2 bg-red-800 border border-red-600 rounded-lg shadow-lg z-10 min-w-[120px]">
                       <button
                         onClick={() => chooseSort('earliest')}
-                        className={`w-full text-left px-4 py-2 text-white hover:bg-red-700 first:rounded-t-lg ${
-                          sortValue === 'earliest' ? 'bg-red-700' : ''
-                        }`}
+                        className={`w-full text-left px-4 py-2 text-white hover:bg-red-700 first:rounded-t-lg ${sortValue === 'earliest' ? 'bg-red-700' : ''
+                          }`}
                       >
                         Earliest
                       </button>
                       <button
                         onClick={() => chooseSort('latest')}
-                        className={`w-full text-left px-4 py-2 text-white hover:bg-red-700 last:rounded-b-lg ${
-                          sortValue === 'latest' ? 'bg-red-700' : ''
-                        }`}
+                        className={`w-full text-left px-4 py-2 text-white hover:bg-red-700 last:rounded-b-lg ${sortValue === 'latest' ? 'bg-red-700' : ''
+                          }`}
                       >
                         Latest
                       </button>
@@ -985,7 +995,7 @@ export default function EditSchedulePage() {
             </div>
 
             {/* Table Header */}
-            <div className={`grid ${(session.user as any).role === 'ADMIN' ? 'grid-cols-6' : 'grid-cols-5'} gap-4 text-white font-medium mb-4 px-4 py-2 bg-red-700/50 rounded`}>
+            <div className={`hidden md:grid ${(session.user as any).role === 'ADMIN' ? 'grid-cols-6' : 'grid-cols-5'} gap-4 text-white font-medium mb-4 px-4 py-2 bg-red-700/50 rounded`}>
               <div>Time</div>
               <div>Matches</div>
               {(session.user as any).role === 'ADMIN' && <div>Sport</div>}
@@ -998,24 +1008,28 @@ export default function EditSchedulePage() {
             <div className="space-y-2">
               {matches.length > 0 ? (
                 matches.map((match) => (
-                  <div key={match.id} className={`grid ${(session.user as any).role === 'ADMIN' ? 'grid-cols-6' : 'grid-cols-5'} gap-4 text-white px-4 py-3 bg-red-700/30 rounded hover:bg-red-700/50 transition-colors`}>
+                  <div key={match.id} className={`grid grid-cols-1 md:${(session.user as any).role === 'ADMIN' ? 'grid-cols-6' : 'grid-cols-5'} gap-3 md:gap-4 text-white px-4 py-3 bg-red-700/30 rounded-xl hover:bg-red-700/50 transition-colors`}>
                     <div className="text-sm">
+                      <div className="md:hidden text-[11px] uppercase tracking-wider text-white/60 mb-0.5">Time</div>
                       <div>{new Date(match.date).toLocaleDateString('th-TH')}</div>
                       <div className="text-xs opacity-80">
                         {match.timeStart || match.time} - {match.timeEnd || ''}
                       </div>
                     </div>
                     <div className="text-sm">
+                      <div className="md:hidden text-[11px] uppercase tracking-wider text-white/60 mb-0.5">Matches</div>
                       <div>{match.team1} vs {match.team2}</div>
                     </div>
                     {(session.user as any).role === 'ADMIN' && (
                       <div className="text-sm">
-                        <div className="px-2 py-1 bg-blue-600/30 rounded text-xs">
+                        <div className="md:hidden text-[11px] uppercase tracking-wider text-white/60 mb-0.5">Sport</div>
+                        <div className="px-2 py-1 bg-blue-600/30 rounded text-xs w-fit">
                           {match.sportType}
                         </div>
                       </div>
                     )}
                     <div className="text-sm">
+                      <div className="md:hidden text-[11px] uppercase tracking-wider text-white/60 mb-0.5">Location</div>
                       <a
                         href={match.mapsLink}
                         target="_blank"
@@ -1026,6 +1040,7 @@ export default function EditSchedulePage() {
                       </a>
                     </div>
                     <div className="text-sm">
+                      <div className="md:hidden text-[11px] uppercase tracking-wider text-white/60 mb-0.5">Status / Result</div>
                       {match.status === 'COMPLETED' ? (
                         match.homeScore !== undefined && match.awayScore !== undefined ? (
                           <div>
@@ -1033,8 +1048,8 @@ export default function EditSchedulePage() {
                               {match.homeScore} - {match.awayScore}
                             </div>
                             <div className="text-xs opacity-80">
-                              Winner: {match.winner === 'team1' ? match.team1 : 
-                                      match.winner === 'team2' ? match.team2 : 'Draw'}
+                              Winner: {match.winner === 'team1' ? match.team1 :
+                                match.winner === 'team2' ? match.team2 : 'Draw'}
                             </div>
                           </div>
                         ) : (
@@ -1057,59 +1072,62 @@ export default function EditSchedulePage() {
                         </div>
                       )}
                     </div>
-                    <div className="flex gap-2">
-                      {/* ปุ่มส่งอีเมลแจ้งเตือนล่วงหน้า 24 ชั่วโมง - แสดงเฉพาะการแข่งขันที่กำหนดไว้ */}
-                      {match.status === 'SCHEDULED' && (
-                        <button
-                          onClick={() => send24HourReminder(match.id)}
-                          className="px-2 py-1 bg-orange-600 hover:bg-orange-700 text-white text-xs rounded transition-colors"
-                          title="ส่งอีเมลแจ้งเตือนล่วงหน้า 24 ชั่วโมง"
-                        >
-                          📧 เตือน 24h
-                        </button>
-                      )}
+                    <div>
+                      <div className="md:hidden text-[11px] uppercase tracking-wider text-white/60 mb-0.5">Actions</div>
+                      <div className="flex flex-wrap gap-2">
+                        {/* ปุ่มส่งอีเมลแจ้งเตือนล่วงหน้า 24 ชั่วโมง - แสดงเฉพาะการแข่งขันที่กำหนดไว้ */}
+                        {match.status === 'SCHEDULED' && (
+                          <button
+                            onClick={() => send24HourReminder(match.id)}
+                            className="px-2 py-1 bg-orange-600 hover:bg-orange-700 text-white text-xs rounded transition-colors"
+                            title="ส่งอีเมลแจ้งเตือนล่วงหน้า 24 ชั่วโมง"
+                          >
+                            📧 เตือน 24h
+                          </button>
+                        )}
 
-                      {/* ปุ่มใส่ผลการแข่งขัน - แสดงเฉพาะเมื่อรอผลการแข่งขัน */}
-                      {match.status === 'PENDING_RESULT' && (
-                        <button
-                          onClick={() => openResultModal(match)}
-                          className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
-                          title="ใส่ผลการแข่งขัน"
-                        >
-                          ใส่ผล
-                        </button>
-                      )}
-                      
-                      {/* ปุ่มแก้ไขผลการแข่งขัน - แสดงเฉพาะเมื่อเสร็จสิ้นแล้ว */}
-                      {match.status === 'COMPLETED' && (
-                        <>
+                        {/* ปุ่มใส่ผลการแข่งขัน - แสดงเฉพาะเมื่อรอผลการแข่งขัน */}
+                        {match.status === 'PENDING_RESULT' && (
                           <button
                             onClick={() => openResultModal(match)}
                             className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
-                            title="แก้ไขผลการแข่งขัน"
+                            title="ใส่ผลการแข่งขัน"
                           >
-                            แก้ไขผล
+                            ใส่ผล
                           </button>
-                          
-                          {/* ปุ่มส่งอีเมลแจ้งผลการแข่งขัน */}
-                          <button
-                            onClick={() => sendMatchResultEmail(match.id)}
-                            className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition-colors"
-                            title="ส่งอีเมลแจ้งผลการแข่งขัน"
-                          >
-                            📧 ผลแข่ง
-                          </button>
-                        </>
-                      )}
-                      
-                      {/* ปุ่มลบ */}
-                      <button
-                        onClick={() => handleDelete(match.id, `${match.team1} vs ${match.team2}`)}
-                        className="text-red-300 hover:text-red-100 transition-colors text-lg"
-                        title="ลบ"
-                      >
-                        🗑️
-                      </button>
+                        )}
+
+                        {/* ปุ่มแก้ไขผลการแข่งขัน - แสดงเฉพาะเมื่อเสร็จสิ้นแล้ว */}
+                        {match.status === 'COMPLETED' && (
+                          <>
+                            <button
+                              onClick={() => openResultModal(match)}
+                              className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors"
+                              title="แก้ไขผลการแข่งขัน"
+                            >
+                              แก้ไขผล
+                            </button>
+
+                            {/* ปุ่มส่งอีเมลแจ้งผลการแข่งขัน */}
+                            <button
+                              onClick={() => sendMatchResultEmail(match.id)}
+                              className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition-colors"
+                              title="ส่งอีเมลแจ้งผลการแข่งขัน"
+                            >
+                              📧 ผลแข่ง
+                            </button>
+                          </>
+                        )}
+
+                        {/* ปุ่มลบ */}
+                        <button
+                          onClick={() => handleDelete(match.id, `${match.team1} vs ${match.team2}`)}
+                          className="text-red-300 hover:text-red-100 transition-colors text-lg"
+                          title="ลบ"
+                        >
+                          🗑️
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))
@@ -1126,7 +1144,7 @@ export default function EditSchedulePage() {
       {/* Result Modal */}
       {selectedMatch && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-gradient-to-b from-red-800 to-red-900 rounded-lg w-full max-w-md">
+          <div className="bg-gradient-to-b from-red-800 to-red-900 rounded-2xl ring-1 ring-white/10 w-full max-w-md">
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-bold text-white">
@@ -1159,7 +1177,7 @@ export default function EditSchedulePage() {
                       type="number"
                       min="0"
                       value={resultForm.homeScore}
-                      onChange={(e) => setResultForm({...resultForm, homeScore: e.target.value})}
+                      onChange={(e) => setResultForm({ ...resultForm, homeScore: e.target.value })}
                       className="w-full px-3 py-2 bg-gray-800 border border-white/20 rounded text-white focus:outline-none focus:border-white/60 focus:bg-gray-700"
                       required
                     />
@@ -1172,7 +1190,7 @@ export default function EditSchedulePage() {
                       type="number"
                       min="0"
                       value={resultForm.awayScore}
-                      onChange={(e) => setResultForm({...resultForm, awayScore: e.target.value})}
+                      onChange={(e) => setResultForm({ ...resultForm, awayScore: e.target.value })}
                       className="w-full px-3 py-2 bg-gray-800 border border-white/20 rounded text-white focus:outline-none focus:border-white/60 focus:bg-gray-700"
                       required
                     />
@@ -1185,7 +1203,7 @@ export default function EditSchedulePage() {
                   </label>
                   <select
                     value={resultForm.winner}
-                    onChange={(e) => setResultForm({...resultForm, winner: e.target.value})}
+                    onChange={(e) => setResultForm({ ...resultForm, winner: e.target.value })}
                     className="w-full px-3 py-2 bg-gray-800 border border-white/20 rounded text-white focus:outline-none focus:border-white/60 focus:bg-gray-700"
                     required
                   >
@@ -1229,6 +1247,9 @@ export default function EditSchedulePage() {
         confirmText={confirmModal.confirmText}
         isLoading={confirmModal.isLoading}
       />
+
+      {/* Footer */}
+      <Footer />
     </div>
   );
 }

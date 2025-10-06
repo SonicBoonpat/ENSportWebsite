@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import ConfirmModal from '@/components/ConfirmModal'
+import Footer from '@/components/Footer'
+import Navbar from '@/components/Navbar'
 
 interface Match {
   id: string;
@@ -413,66 +415,7 @@ function App() {
   return (
     <>
       <main className='bg-black min-h-screen'>
-        <nav className='sticky top-0 bg-red-en font-orbitron text-white py-3 flex items-center justify-between mx-6 mt-10 mb-4 rounded-[8px] shadow-white shadow-md/20 px-6 z-50'>
-        <div className='text-xl font-bold'>
-          EN SPORT
-      </div>
-
-        {session?.user && (
-          <div className='flex items-center gap-4'>
-            {/* แสดง Role */}
-            <div className='text-sm font-medium'>
-              {getUserRole()}
-          </div>
-            
-            {/* Hamburger Menu */}
-            <div className='relative' ref={menuRef}>
-              <button
-                onClick={() => setMenuOpen(!menuOpen)}
-                className='flex flex-col gap-1 p-2 hover:bg-white/10 rounded-md transition-colors'
-                aria-label='Menu'
-              >
-                <span className='block w-5 h-0.5 bg-white'></span>
-                <span className='block w-5 h-0.5 bg-white'></span>
-                <span className='block w-5 h-0.5 bg-white'></span>
-              </button>
-              
-              {/* Dropdown Menu */}
-              {menuOpen && (
-                <div className='absolute right-0 top-full mt-2 w-48 bg-white text-black rounded-lg shadow-lg border py-2 z-[100]'>
-                  <button
-                    onClick={handleEditSchedule}
-                    className='w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors'
-                  >
-                    Edit Schedule
-                  </button>
-                  <button
-                    onClick={handleEditBanner}
-                    className='w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors'
-                  >
-                    Edit Banner
-                  </button>
-                  {(session.user as any).role === 'ADMIN' && (
-                    <button
-                      onClick={handleLogs}
-                      className='w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors'
-                    >
-                      Logs
-                    </button>
-                  )}
-                  <hr className='my-1' />
-                  <button
-                    onClick={handleLogout}
-                    className='w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 transition-colors'
-                  >
-                    Log out
-                  </button>
-              </div>
-              )}
-            </div>
-          </div>
-        )}
-      </nav>
+        <Navbar />
         <section>
           <div className='mx-6 text-center text-white'>
             <div className='bg-red-en mb-4 rounded-[8px] w-auto h-[150px] shadow-white shadow-md/20 overflow-hidden relative'>
@@ -526,7 +469,7 @@ function App() {
 
             <div className='bg-red-en pb-4 mb-4 rounded-[8px] shadow-white shadow-md/20'>
 
-              <h1 className='justify-center font-rubik font-normal text-white text-md py-3'>
+              <h1 className='justify-center font-rubik font-medium text-white text-2xl py-3'>
                 Time Table
               </h1>
 
@@ -596,13 +539,23 @@ function App() {
           </div>
 
               <div>
-                <div className='flex flex-row justify-between font-rubik px-6 pb-2 border-b border-white/40 mx-4 text-center'>
-                  <h1 className='w-1/5'>Time/Status</h1>
-                  <h1 className='w-1/5'>Matches</h1>
-                  <h1 className='w-1/5'>Location</h1>
+                {/* Mobile Header */}
+                <div className='grid grid-cols-3 gap-2 font-rubik px-4 pb-2 border-b border-white/40 mx-4 text-center md:hidden'>
+                  <h1 className='text-sm'>Time/Status</h1>
+                  <h1 className='text-sm'>Matches</h1>
+                  <h1 className='text-sm'>Location</h1>
+                </div>
+                {/* Desktop Header */}
+                <div className='hidden md:grid grid-cols-6 font-rubik px-6 pb-2 border-b border-white/40 mx-4 text-center'>
+                  <h1>Time</h1>
+                  <h1>Status</h1>
+                  <h1>Score A</h1>
+                  <h1>Matches</h1>
+                  <h1>Score B</h1>
+                  <h1>Location</h1>
                 </div>
 
-                <div className='mt-2 rounded-[8px] mx-4 '>
+                <div className='mt-2 rounded-[8px] mx-4'>
                   {isLoading ? (
                     <div className="text-center text-white py-8">
                       <div className="animate-spin inline-block w-8 h-8 border-4 border-white border-t-transparent rounded-full"></div>
@@ -614,87 +567,172 @@ function App() {
                     </div>
                   ) : (
                     (() => {
-                      // คำนวณข้อมูลสำหรับหน้าปัจจุบัน
+                      // จัดลำดับตามสถานะก่อน แล้วค่อย tie-break ตามตัวเลือก sort เดิม
+                      const statusOrder: Record<string, number> = {
+                        ONGOING: 0,
+                        PENDING_RESULT: 1,
+                        COMPLETED: 2,
+                        SCHEDULED: 3,
+                      };
+
+                      const toDateTime = (m: Match) => {
+                        const d = new Date(m.rawDate);
+                        const [hh, mm] = m.rawTime ? m.rawTime.split(':').map(Number) : [0, 0];
+                        d.setHours(hh, mm, 0, 0);
+                        return d.getTime();
+                      };
+
+                      const prioritized = [...filteredMatches].sort((a, b) => {
+                        const sa = getMatchStatus(a);
+                        const sb = getMatchStatus(b);
+                        if (statusOrder[sa] !== statusOrder[sb]) return statusOrder[sa] - statusOrder[sb];
+
+                        // tie-break ด้วย sortValue ที่มีอยู่เดิม
+                        switch (sortValue) {
+                          case 'th-asc':
+                            return a.sport.localeCompare(b.sport, 'th');
+                          case 'th-desc':
+                            return b.sport.localeCompare(a.sport, 'th');
+                          case 'earliest': {
+                            return toDateTime(a) - toDateTime(b);
+                          }
+                          case 'latest': {
+                            return toDateTime(b) - toDateTime(a);
+                          }
+                          default:
+                            return 0;
+                        }
+                      });
+
+                      // คำนวณสำหรับหน้าปัจจุบัน (หลังจัดลำดับใหม่)
                       const startIndex = (currentPage - 1) * itemsPerPage;
                       const endIndex = startIndex + itemsPerPage;
-                      const currentMatches = filteredMatches.slice(startIndex, endIndex);
-                      
+                      const currentMatches = prioritized.slice(startIndex, endIndex);
+
                       return currentMatches.map((ev, idx) => {
-                      const matchStatus = getMatchStatus(ev);
-                      return (
-                        <div
-                          key={idx}
-                          onClick={() => setSelectedMatch(ev)}
-                          className='my-3 rounded-[12px] bg-red-en-bg px-4 py-3 cursor-pointer hover:bg-red-en-bg/80 transition-colors'
-                        >
-                          <div className='flex items-center justify-between gap-2 font-rubik'>
-                            {/* Time/Status */}
-                            <div className='w-1/5 text-left font-light text-sm'>
-                              <div className='leading-tight'>
-                                {matchStatus === 'COMPLETED' ? (
-                                  <>
-                                    <h1 className='text-green-300 font-medium text-xs'>✅ Completed</h1>
-                                  </>
-                                ) : matchStatus === 'ONGOING' ? (
-                                  <>
-                                    <h1 className='text-red-400 font-bold text-xs animate-pulse'>🔴 LIVE</h1>
-                                  </>
-                                ) : matchStatus === 'PENDING_RESULT' ? (
-                                  <>
-                                    <h1 className='text-yellow-300 font-medium text-xs'>⏰ Waiting</h1>
-                                  </>
-                                ) : (
-                                  <>
-                                    <h1>{ev.date}</h1>
-                                    <h1>{ev.time}</h1>
-                                  </>
-                                )}
+                        const matchStatus = getMatchStatus(ev);
+                        const statusText =
+                          matchStatus === 'COMPLETED'
+                            ? 'แข่งเสร็จแล้ว'
+                            : matchStatus === 'ONGOING'
+                            ? 'กำลังแข่ง'
+                            : matchStatus === 'PENDING_RESULT'
+                            ? 'รอผลการแข่งขัน'
+                            : 'กำลังจะถึง';
+
+                        return (
+                          <div
+                            key={idx}
+                            onClick={() => setSelectedMatch(ev)}
+                            className='my-3 rounded-[12px] bg-red-en-bg px-4 py-3 cursor-pointer hover:bg-red-en-bg/80 transition-colors'
+                          >
+                            {/* Mobile row (3 คอลัมน์): Time/Status | Matches | Location (no score) */}
+                            <div className='md:hidden font-rubik text-center'>
+                              <div className='grid grid-cols-3 items-center gap-2'>
+                                {/* Time/Status */}
+                                <div className='text-xs font-light'>
+                                  {matchStatus === 'SCHEDULED' ? (
+                                    <>
+                                      <div>{ev.date}</div>
+                                      <div className='opacity-80'>{ev.time}</div>
+                                    </>
+                                  ) : (
+                                    <div
+                                      className={
+                                        matchStatus === 'ONGOING'
+                                          ? 'text-red-400 font-medium animate-pulse'
+                                          : matchStatus === 'PENDING_RESULT'
+                                          ? 'text-yellow-300 font-medium'
+                                          : 'text-green-300 font-medium'
+                                      }
+                                    >
+                                      {statusText}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Matches */}
+                                <div className='text-xs font-light'>
+                                  <div>{ev.sport}</div>
+                                  <div className='opacity-90 truncate'>{ev.match}</div>
+                                </div>
+
+                                {/* Location */}
+                                <div className='text-xs font-light'>
+                                  <a
+                                    href={ev.url}
+                                    target='_blank'
+                                    rel='noopener noreferrer'
+                                    onClick={(e) => e.stopPropagation()}
+                                    className='underline underline-offset-4 block truncate'
+                                  >
+                                    {ev.location}
+                                  </a>
+                                </div>
                               </div>
                             </div>
 
-                            {/* Score Team 1 (Home) */}
-                            <div className='w-[10%] text-right font-light text-sm'>
-                              {matchStatus === 'COMPLETED' && ev.homeScore !== undefined ? (
-                                <h1 className='text-2xl font-bold text-green-300'>{ev.homeScore}</h1>
-                              ) : (
-                                <h1 className='text-gray-400'>-</h1>
-                              )}
-                            </div>
+                            {/* Desktop grid row (6 คอลัมน์): Time | Status | ScoreA | Matches | ScoreB | Location */}
+                            <div className='hidden md:grid grid-cols-6 items-center gap-4 font-rubik text-center'>
+                              {/* Time */}
+                              <div className='text-sm'>
+                                <div>{ev.date}</div>
+                                <div className='opacity-80 text-xs'>{ev.time}</div>
+                              </div>
 
-                            {/* Matches */}
-                            <div className='w-2/5 text-center font-light text-sm'>
-                              <div className='leading-tight'>
-                                <h1>{ev.sport}</h1>
-                                <h1>{ev.match}</h1>
-            </div>
-          </div>
+                              {/* Status */}
+                              <div className='text-sm'>
+                                {matchStatus === 'COMPLETED' ? (
+                                  <span className='text-green-300'>แข่งเสร็จแล้ว</span>
+                                ) : matchStatus === 'ONGOING' ? (
+                                  <span className='text-red-400 animate-pulse'>กำลังแข่ง</span>
+                                ) : matchStatus === 'PENDING_RESULT' ? (
+                                  <span className='text-yellow-300'>รอผลการแข่งขัน</span>
+                                ) : (
+                                  <span className='text-blue-300'>กำลังจะถึง</span>
+                                )}
+                              </div>
 
-                            {/* Score Team 2 (Away) */}
-                            <div className='w-[10%] text-left font-light text-sm'>
-                              {matchStatus === 'COMPLETED' && ev.awayScore !== undefined ? (
-                                <h1 className='text-2xl font-bold text-green-300'>{ev.awayScore}</h1>
-                              ) : (
-                                <h1 className='text-gray-400'>-</h1>
-                              )}
-                            </div>
+                              {/* Score A */}
+                              <div className='text-sm'>
+                                {matchStatus === 'COMPLETED' && ev.homeScore !== undefined ? (
+                                  <span className='text-2xl font-bold text-green-300'>{ev.homeScore}</span>
+                                ) : (
+                                  <span className='text-gray-400'>-</span>
+                                )}
+                              </div>
 
-                            {/* Location */}
-                            <div className='w-1/5 text-right font-light text-sm'>
-                              <div className='leading-tight inline-block max-w-[190px] align-middle'>
+                              {/* Matches */}
+                              <div className='text-sm'>
+                                <div>{ev.sport}</div>
+                                <div className='opacity-90'>{ev.match}</div>
+                              </div>
+
+                              {/* Score B */}
+                              <div className='text-sm'>
+                                {matchStatus === 'COMPLETED' && ev.awayScore !== undefined ? (
+                                  <span className='text-2xl font-bold text-green-300'>{ev.awayScore}</span>
+                                ) : (
+                                  <span className='text-gray-400'>-</span>
+                                )}
+                              </div>
+
+                              {/* Location */}
+                              <div className='text-sm'>
                                 <a
                                   href={ev.url}
                                   target='_blank'
                                   rel='noopener noreferrer'
                                   onClick={(e) => e.stopPropagation()}
-                                  className='block overflow-hidden whitespace-nowrap text-ellipsis underline underline-offset-4'                                >
-                                  {ev.location.length > 8 ? ev.location.slice(0, 8) + '...' : ev.location}
+                                  className='underline underline-offset-4'
+                                >
+                                  {ev.location.length > 18 ? ev.location.slice(0, 18) + '...' : ev.location}
                                 </a>
-                  </div>
-                  </div>
-                    </div>
-                  </div>
-                      );
-                    });
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      });
                     })()
                   )}
                 </div>
@@ -814,11 +852,11 @@ function App() {
               <div></div>
           </div>
 
-            <div className='bg-red-en font-rubik mb-4 rounded-[20px] w-auto shadow-white shadow-md/20 px-6 py-8 sm:px-10 sm:py-12 text-white'>
-              <h2 className='text-2xl font-semibold text-center'>Get Sport EN Updates</h2>
-              <p className='mt-3 font-extralight text-sm max-w-[40ch] text-center opacity-90'>
+            <div className='bg-red-en font-rubik mb-4 rounded-[20px] text-center w-auto shadow-white shadow-md/20 px-6 py-8 sm:px-10 sm:py-12 text-white'>
+              <h2 className='text-2xl font-semibold'>Get Sport EN Updates</h2>
+              <p className='mt-3 font-extralight text-sm opacity-90'>
               Subscribe to receive match reminders and news by email.
-            </p>
+              </p>
             
               <form onSubmit={handleSubscribe} className='mt-8 max-w-3xl mx-auto'>
                 <label htmlFor='subscribeEmail' className='block text-lg sm:text-2xl font-semibold mb-2 text-center'>
@@ -847,17 +885,12 @@ function App() {
 
               {/* Message Display - ลบออกแล้วเพราะใช้ Modal แทน */}
 
-                <p className='mt-6 font-extralight max-w-[40ch] text-center text-sm sm:text-base opacity-80 mx-auto'>
+                <p className='mt-6 font-extralight text-center text-sm sm:text-base opacity-90 mx-auto'>
                   By subscribing, you agree to receive emails from Sport EN. You can unsubscribe anytime.
                 </p>
               </form>
             </div>
-            <footer className='bg-black text-white text-center font-rubik py-10 space-y-4'>
-              <h2 className='text-lg font-medium'>Contact Us</h2>
-              <h3 className='text-md mt-4'>For Administer</h3>
-              <p className='text-sm opacity-80'>GE362785 Creative Thinking and Problem Solving</p>
-              <p className='text-sm opacity-80'>Copyright © All right reserve 2025 Group 2 Section 4</p>
-            </footer>
+            <Footer />
           </div>
         </section>
 
@@ -868,25 +901,26 @@ function App() {
             onClick={() => setSelectedMatch(null)}
           >
             <div 
-              className="bg-gradient-to-br from-slate-800 via-slate-900 to-black rounded-3xl w-full max-w-lg overflow-hidden relative shadow-2xl border border-gray-700/50"
+              className="bg-gradient-to-b from-black to-red-en/10 rounded-3xl w-full max-w-lg overflow-hidden relative shadow-2xl ring-1 ring-white/10"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Close Button */}
               <button
                 onClick={() => setSelectedMatch(null)}
                 className="absolute top-4 right-4 text-white/70 hover:text-white text-3xl font-light z-10 transition-colors"
+                aria-label="Close"
               >
                 ×
               </button>
 
               {/* Header with Date/Time */}
-              <div className="bg-gradient-to-r from-red-600/20 to-red-800/20 backdrop-blur-sm px-8 py-6 text-center text-white border-b border-gray-700/30">
+              <div className="bg-gradient-to-r from-red-en to-red-en-bg backdrop-blur-sm px-8 py-6 text-center text-white border-b border-white/10">
                 <div className="text-xl font-bold mb-1">{selectedMatch.date}</div>
-                <div className="text-sm opacity-70 font-medium">{selectedMatch.time}</div>
+                <div className="text-sm/relaxed text-white/80 font-medium">{selectedMatch.time}</div>
               </div>
 
               {/* Teams and Score Section */}
-              <div className="py-10 px-8">
+              <div className="py-8 px-6 sm:px-8">
                 <div className="flex items-center justify-between gap-6">
                   {/* Team 1 */}
                   <div className="flex-1 text-center">
@@ -897,21 +931,21 @@ function App() {
                     </div>
                   </div>
 
-                  {/* Score Section */}
-                  <div className="text-center px-4">
+                  {/* Score / Status Card */}
+                  <div className="text-center px-3 sm:px-4">
                     {getMatchStatus(selectedMatch) === 'COMPLETED' && 
                      selectedMatch.homeScore !== undefined && 
                      selectedMatch.awayScore !== undefined ? (
-                      <div className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-2xl px-6 py-4 border border-green-500/30">
+                      <div className="bg-white/5 rounded-2xl px-6 py-4 ring-1 ring-white/15">
                         <div className="text-white text-4xl font-bold mb-1">
                           {selectedMatch.homeScore} - {selectedMatch.awayScore}
                         </div>
-                        <div className="text-green-400 text-xs uppercase tracking-wider font-medium">
+                        <div className="text-white/70 text-xs uppercase tracking-wider font-medium">
                           FINAL SCORE
                         </div>
                       </div>
                     ) : getMatchStatus(selectedMatch) === 'ONGOING' ? (
-                      <div className="bg-gradient-to-r from-red-600/20 to-red-800/20 rounded-2xl px-6 py-4 border border-red-500/30">
+                      <div className="bg-gradient-to-r from-red-700/20 to-red-900/20 rounded-2xl px-6 py-4 ring-1 ring-red-500/30">
                         <div className="text-red-400 text-2xl font-light mb-1">
                           LIVE
                         </div>
@@ -920,20 +954,20 @@ function App() {
                         </div>
                       </div>
                     ) : getMatchStatus(selectedMatch) === 'PENDING_RESULT' ? (
-                      <div className="bg-gradient-to-r from-yellow-600/20 to-orange-600/20 rounded-2xl px-6 py-4 border border-yellow-500/30">
-                        <div className="text-yellow-400 text-2xl font-light mb-1">
+                      <div className="bg-gradient-to-r from-amber-600/20 to-orange-700/20 rounded-2xl px-6 py-4 ring-1 ring-amber-400/30">
+                        <div className="text-amber-300 text-2xl font-light mb-1">
                           VS
                         </div>
-                        <div className="text-yellow-400 text-xs uppercase tracking-wider font-medium">
+                        <div className="text-amber-300 text-xs uppercase tracking-wider font-medium">
                           AWAITING RESULT
                         </div>
                       </div>
                     ) : (
-                      <div className="bg-gradient-to-r from-blue-600/20 to-indigo-600/20 rounded-2xl px-6 py-4 border border-blue-500/30">
-                        <div className="text-blue-400 text-2xl font-light mb-1">
+                      <div className="bg-white/5 rounded-2xl px-6 py-4 ring-1 ring-white/15">
+                        <div className="text-white/80 text-2xl font-light mb-1">
                           VS
                         </div>
-                        <div className="text-blue-400 text-xs uppercase tracking-wider font-medium">
+                        <div className="text-white/70 text-xs uppercase tracking-wider font-medium">
                           SCHEDULED
                         </div>
                       </div>
@@ -952,34 +986,34 @@ function App() {
               </div>
 
               {/* Match Details */}
-              <div className="px-8 pb-8">
-                <div className="bg-gray-800/30 rounded-2xl p-6 space-y-4 border border-gray-700/30">
+              <div className="px-6 sm:px-8 pb-8">
+                <div className="bg-black/40 rounded-2xl p-6 space-y-4 ring-1 ring-white/10">
                   {/* Sport Type */}
                   <div className="flex items-center justify-between">
-                    <div className="text-gray-400 text-sm uppercase tracking-wider font-medium">Sport</div>
+                    <div className="text-white/60 text-sm uppercase tracking-wider font-medium">Sport</div>
                     <div className="text-white font-semibold">{selectedMatch.sport}</div>
                   </div>
 
                   {/* Location */}
                   <div className="flex items-center justify-between">
-                    <div className="text-gray-400 text-sm uppercase tracking-wider font-medium">Location</div>
+                    <div className="text-white/60 text-sm uppercase tracking-wider font-medium">Location</div>
                     <a
                       href={selectedMatch.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-400 font-semibold hover:text-blue-300 transition-colors underline decoration-blue-400/30 hover:decoration-blue-300"
+                      className="text-red-300 font-semibold hover:text-red-200 transition-colors underline decoration-red-300/30 hover:decoration-red-200"
                     >
                       {selectedMatch.location}
                     </a>
-          </div>
-          
+                  </div>
+                  
                   {/* Status */}
                   <div className="flex items-center justify-between">
-                    <div className="text-gray-400 text-sm uppercase tracking-wider font-medium">Status</div>
+                    <div className="text-white/60 text-sm uppercase tracking-wider font-medium">Status</div>
                     <div className="font-semibold">
                       {getMatchStatus(selectedMatch) === 'COMPLETED' ? (
-                        <span className="text-green-400 flex items-center gap-2">
-                          <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                        <span className="text-white/85 flex items-center gap-2">
+                          <span className="w-2 h-2 bg-white/90 rounded-full"></span>
                           Completed
                         </span>
                       ) : getMatchStatus(selectedMatch) === 'ONGOING' ? (
@@ -988,22 +1022,22 @@ function App() {
                           กำลังแข่งขัน
                         </span>
                       ) : getMatchStatus(selectedMatch) === 'PENDING_RESULT' ? (
-                        <span className="text-yellow-400 flex items-center gap-2">
-                          <span className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>
+                        <span className="text-amber-300 flex items-center gap-2">
+                          <span className="w-2 h-2 bg-amber-300 rounded-full animate-pulse"></span>
                           Waiting for result
                         </span>
                       ) : (
-                        <span className="text-blue-400 flex items-center gap-2">
-                          <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
+                        <span className="text-white/70 flex items-center gap-2">
+                          <span className="w-2 h-2 bg-white/60 rounded-full"></span>
                           Scheduled
                         </span>
                       )}
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
           </div>
-      </div>
-    </div>
         )}
 
       {/* Confirm Modal */}
