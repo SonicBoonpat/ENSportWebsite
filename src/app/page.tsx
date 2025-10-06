@@ -445,30 +445,30 @@ function App() {
                         />
                       </div>
                     ))}
-                  </div>
-                  
+      </div>
+
                   {/* Navigation Buttons */}
                   {banners.length > 1 && (
                     <>
                       {/* Previous Button */}
                       <button
                         onClick={prevBanner}
-                        className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-all duration-300 backdrop-blur-sm z-10"
+                        className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/15 hover:bg-black/30 text-white/60 hover:text-white/90 p-1.5 rounded-full transition-all duration-300 backdrop-blur-sm z-10 sm:left-4 sm:p-2"
                         aria-label="Previous banner"
                       >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
                         </svg>
                       </button>
 
                       {/* Next Button */}
                       <button
                         onClick={nextBanner}
-                        className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-all duration-300 backdrop-blur-sm z-10"
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/15 hover:bg-black/30 text-white/60 hover:text-white/90 p-1.5 rounded-full transition-all duration-300 backdrop-blur-sm z-10 sm:right-4 sm:p-2"
                         aria-label="Next banner"
                       >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                         </svg>
                       </button>
                     </>
@@ -565,10 +565,10 @@ function App() {
                         onClick={() => chooseSort('latest')}
                         className={`w-full text-left rounded-[6px] px-3 py-2 hover:bg-black/5 ${sortValue === 'latest' ? 'bg-black/5 font-medium' : ''}`}
                       >Latest</button>
-            </div>
+              </div>
                   )}
+              </div>
             </div>
-          </div>
 
               <div>
                 {/* Mobile Header */}
@@ -596,7 +596,7 @@ function App() {
                   ) : filteredMatches.length === 0 ? (
                     <div className="text-center text-white py-8">
                       <p>ไม่พบข้อมูลการแข่งขัน</p>
-                    </div>
+          </div>
                   ) : (
                     (() => {
                       // จัดลำดับตามสถานะก่อน แล้วค่อย tie-break ตามตัวเลือก sort เดิม
@@ -681,13 +681,13 @@ function App() {
                                       {statusText}
                                     </div>
                                   )}
-                                </div>
+          </div>
 
                                 {/* Matches */}
                                 <div className='text-xs font-light'>
                                   <div>{ev.sport}</div>
                                   <div className='opacity-90 truncate'>{ev.match}</div>
-                                </div>
+            </div>
 
                                 {/* Location */}
                                 <div className='text-xs font-light'>
@@ -701,8 +701,8 @@ function App() {
                                     {ev.location}
                                   </a>
                                 </div>
-                              </div>
-                            </div>
+            </div>
+          </div>
 
                             {/* Desktop grid row (6 คอลัมน์): Time | Status | ScoreA | Matches | ScoreB | Location */}
                             <div className='hidden md:grid grid-cols-6 items-center gap-4 font-rubik text-center'>
@@ -723,7 +723,7 @@ function App() {
                                 ) : (
                                   <span className='text-blue-300'>กำลังจะถึง</span>
                                 )}
-                              </div>
+            </div>
 
                               {/* Score A */}
                               <div className='text-sm'>
@@ -732,13 +732,13 @@ function App() {
                                 ) : (
                                   <span className='text-gray-400'>-</span>
                                 )}
-                              </div>
+          </div>
 
                               {/* Matches */}
                               <div className='text-sm'>
                                 <div>{ev.sport}</div>
                                 <div className='opacity-90'>{ev.match}</div>
-                              </div>
+                  </div>
 
                               {/* Score B */}
                               <div className='text-sm'>
@@ -747,7 +747,7 @@ function App() {
                                 ) : (
                                   <span className='text-gray-400'>-</span>
                                 )}
-                              </div>
+                  </div>
 
                               {/* Location */}
                               <div className='text-sm'>
@@ -760,9 +760,9 @@ function App() {
                                 >
                                   {ev.location.length > 18 ? ev.location.slice(0, 18) + '...' : ev.location}
                                 </a>
-                              </div>
-                            </div>
-                          </div>
+                    </div>
+                  </div>
+                </div>
                         );
                       });
                     })()
@@ -888,7 +888,7 @@ function App() {
               <h2 className='text-2xl font-semibold'>Get Sport EN Updates</h2>
               <p className='mt-3 font-extralight text-sm opacity-90'>
               Subscribe to receive match reminders and news by email.
-              </p>
+            </p>
             
               <form onSubmit={handleSubscribe} className='mt-8 max-w-3xl mx-auto'>
                 <label htmlFor='subscribeEmail' className='block text-lg sm:text-2xl font-semibold mb-2 text-center'>
@@ -916,10 +916,10 @@ function App() {
               </button>
 
               {/* Message Display - ลบออกแล้วเพราะใช้ Modal แทน */}
-
+            
                 <p className='mt-6 font-extralight text-center text-sm sm:text-base opacity-90 mx-auto'>
                   By subscribing, you agree to receive emails from Sport EN. You can unsubscribe anytime.
-                </p>
+            </p>
               </form>
             </div>
             <Footer />
@@ -1037,8 +1037,8 @@ function App() {
                     >
                       {selectedMatch.location}
                     </a>
-                  </div>
-                  
+          </div>
+          
                   {/* Status */}
                   <div className="flex items-center justify-between">
                     <div className="text-white/60 text-sm uppercase tracking-wider font-medium">Status</div>
@@ -1067,9 +1067,9 @@ function App() {
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
           </div>
+      </div>
+    </div>
         )}
 
       {/* Confirm Modal */}
