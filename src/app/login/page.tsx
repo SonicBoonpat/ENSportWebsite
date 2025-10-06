@@ -71,14 +71,9 @@ export default function LoginPage() {
       <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4">
         {/* Header */}
         <div className="mb-6 lg:mb-12 w-full px-4">
-          <div className="bg-red-en font-orbitron text-white py-3 flex items-center justify-center gap-3 rounded-xl shadow-white shadow-md/20 px-4">
-            <img 
-              src="/logo.png" 
-              alt="KKU EN Sport Logo" 
-              className="h-8 sm:h-10 md:h-12 w-auto"
-            />
+          <div className="bg-red-en font-orbitron text-white py-3 flex items-center justify-center rounded-xl shadow-white shadow-md/20 px-4">
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-wider text-white text-center">
-              KKU EN SPORT
+              EN SPORT
             </h1>
           </div>
         </div>
