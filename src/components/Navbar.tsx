@@ -66,10 +66,17 @@ export default function Navbar() {
     <nav
       className={`sticky top-2 bg-red-en font-orbitron text-white py-3 flex items-center mx-6 mt-10 mb-4 rounded-[8px] shadow-white shadow-md/20 px-6 z-50 ${justifyClass}`}
     >
-      <div className='text-3xl sm:text-4xl md:text-5xl font-bold tracking-wider text-center'>
-        <Link href="/" className="inline-block focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 hover:opacity-90 rounded-sm" aria-label="Go to home">
-          EN SPORT
-        </Link>
+      <div className='flex items-center justify-center gap-3'>
+        <img 
+          src="/logo.png" 
+          alt="KKU EN Sport Logo" 
+          className="h-8 sm:h-10 md:h-12 w-auto"
+        />
+        <div className='text-3xl sm:text-4xl md:text-5xl font-bold tracking-wider text-center'>
+          <Link href="/" className="inline-block focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 hover:opacity-90 rounded-sm" aria-label="Go to home">
+            KKU EN SPORT
+          </Link>
+        </div>
       </div>
 
       {session?.user && (
