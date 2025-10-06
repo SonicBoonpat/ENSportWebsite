@@ -319,6 +319,20 @@ function App() {
     setCurrentBannerIndex(index);
   };
 
+  // ฟังก์ชันสำหรับเลื่อนไปข้างหน้า
+  const nextBanner = () => {
+    setCurrentBannerIndex((prev) => 
+      prev === banners.length - 1 ? 0 : prev + 1
+    );
+  };
+
+  // ฟังก์ชันสำหรับเลื่อนไปข้างหลัง
+  const prevBanner = () => {
+    setCurrentBannerIndex((prev) => 
+      prev === 0 ? banners.length - 1 : prev - 1
+    );
+  };
+
   // Effect สำหรับ search และ sorting
   useEffect(() => {
     const baseData = searchTerm ? 
@@ -385,11 +399,23 @@ function App() {
       if (e.key === 'Escape') {
         setSortOpen(false);
         setMenuOpen(false);
+        setSelectedMatch(null);
+      }
+      
+      // Banner navigation with arrow keys
+      if (banners.length > 1 && !selectedMatch) {
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          prevBanner();
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          nextBanner();
+        }
       }
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, []);
+  }, [banners.length, selectedMatch]);
 
   return (
     <>
@@ -421,6 +447,33 @@ function App() {
                     ))}
                   </div>
                   
+                  {/* Navigation Buttons */}
+                  {banners.length > 1 && (
+                    <>
+                      {/* Previous Button */}
+                      <button
+                        onClick={prevBanner}
+                        className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-all duration-300 backdrop-blur-sm z-10"
+                        aria-label="Previous banner"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                      </button>
+
+                      {/* Next Button */}
+                      <button
+                        onClick={nextBanner}
+                        className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-all duration-300 backdrop-blur-sm z-10"
+                        aria-label="Next banner"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </>
+                  )}
+
                   {/* Banner Indicators */}
                   {banners.length > 1 && (
                     <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex gap-2">
