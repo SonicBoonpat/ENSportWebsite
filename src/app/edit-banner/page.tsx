@@ -660,6 +660,7 @@ export default function EditBannerPage() {
                 <p>ยังไม่มีประวัติการอัปโหลด</p>
               </div>
             ) : (
+              
               <div className="space-y-3">
                 {history.map((item) => (
                   <div key={item.id} className="flex items-center justify-between bg-red-en-bg/60 ring-1 ring-white/10 rounded-xl p-4 gap-3">
