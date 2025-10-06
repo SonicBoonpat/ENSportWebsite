@@ -391,34 +391,13 @@ function App() {
     return () => document.removeEventListener('keydown', onKey);
   }, []);
 
-  const events = [
-    { date: '25 Dec 2025', time: '18:00 - 19:30', sport: 'Football', match: 'CoE vs DME', location: 'สนาม 50 ปี มหาวิทยาลัยขอนแก่น', url: 'https://www.google.com/maps/place/50th+Anniversary+Stadium+of+Khon+Kaen+University/@16.4765881,102.8155518,942m/data=!3m2!1e3!4b1!4m6!3m5!1s0x31228b23b4aeba4d:0xec1c06ec9cfbe9cb!8m2!3d16.476583!4d102.8181267!16s%2Fg%2F11fdvv7ccd?entry=ttu&g_ep=EgoyMDI1MDkyNC4wIKXMDSoASAFQAw%3D%3D' },
-    { date: '26 Dec 2025', time: '09:00 - 10:00', sport: 'Basketball', match: 'EE vs ME', location: 'โรงยิม KKU', url: 'https://maps.google.com' },
-    { date: '26 Dec 2025', time: '10:00 - 11:00', sport: 'Volleyball', match: 'CPE vs CE', location: 'สนามกีฬา คณะวิศวะ', url: 'https://maps.google.com' },
-    { date: '26 Dec 2025', time: '13:00 - 14:00', sport: 'Badminton', match: 'IE vs CPE', location: 'Sport Complex', url: 'https://maps.google.com' },
-    { date: '27 Dec 2025', time: '08:30 - 09:30', sport: 'Table Tennis', match: 'ME vs IE', location: 'ตึกกีฬา 2', url: 'https://maps.google.com' },
-    { date: '27 Dec 2025', time: '15:00 - 16:30', sport: 'Football', match: 'DME vs CPE', location: 'สนาม 50 ปี มข.', url: 'https://maps.google.com' },
-    { date: '28 Dec 2025', time: '11:00 - 12:00', sport: 'Esports', match: 'CoE vs EE', location: 'E-Sport Arena', url: 'https://maps.google.com' },
-    { date: '28 Dec 2025', time: '17:00 - 18:30', sport: 'Futsal', match: 'EE vs DME', location: 'สนามฟุตซอล คณะ', url: 'https://maps.google.com' },
-    { date: '29 Dec 2025', time: '14:00 - 15:00', sport: 'Chess', match: 'CPE vs ME', location: 'ห้องกิจกรรม', url: 'https://maps.google.com' },
-    { date: '25 Dec 2025', time: '18:00 - 19:30', sport: 'Football', match: 'CoE vs DME', location: 'สนาม 50 ปี มหาวิทยาลัยขอนแก่น', url: 'https://www.google.com/maps/place/50th+Anniversary+Stadium+of+Khon+Kaen+University/@16.4765881,102.8155518,942m/data=!3m2!1e3!4b1!4m6!3m5!1s0x31228b23b4aeba4d:0xec1c06ec9cfbe9cb!8m2!3d16.476583!4d102.8181267!16s%2Fg%2F11fdvv7ccd?entry=ttu&g_ep=EgoyMDI1MDkyNC4wIKXMDSoASAFQAw%3D%3D' },
-    { date: '26 Dec 2025', time: '09:00 - 10:00', sport: 'Basketball', match: 'EE vs ME', location: 'โรงยิม KKU', url: 'https://maps.google.com' },
-    { date: '26 Dec 2025', time: '10:00 - 11:00', sport: 'Volleyball', match: 'CPE vs CE', location: 'สนามกีฬา คณะวิศวะ', url: 'https://maps.google.com' },
-    { date: '26 Dec 2025', time: '13:00 - 14:00', sport: 'Badminton', match: 'IE vs CPE', location: 'Sport Complex', url: 'https://maps.google.com' },
-    { date: '27 Dec 2025', time: '08:30 - 09:30', sport: 'Table Tennis', match: 'ME vs IE', location: 'ตึกกีฬา 2', url: 'https://maps.google.com' },
-    { date: '27 Dec 2025', time: '15:00 - 16:30', sport: 'Football', match: 'DME vs CPE', location: 'สนาม 50 ปี มข.', url: 'https://maps.google.com' },
-    { date: '28 Dec 2025', time: '11:00 - 12:00', sport: 'Esports', match: 'CoE vs EE', location: 'E-Sport Arena', url: 'https://maps.google.com' },
-    { date: '28 Dec 2025', time: '17:00 - 18:30', sport: 'Futsal', match: 'EE vs DME', location: 'สนามฟุตซอล คณะ', url: 'https://maps.google.com' },
-    { date: '29 Dec 2025', time: '14:00 - 15:00', sport: 'Chess', match: 'CPE vs ME', location: 'ห้องกิจกรรม', url: 'https://maps.google.com' },
-  ];
-
   return (
     <>
       <main className='bg-black min-h-screen'>
         <Navbar />
         <section>
           <div className='mx-6 text-center text-white'>
-            <div className='bg-red-en mb-4 rounded-[8px] w-auto h-[150px] shadow-white shadow-md/20 overflow-hidden relative'>
+            <div className='bg-red-en mb-4 rounded-[8px] w-full aspect-[16/5] shadow-white shadow-md/20 overflow-hidden relative'>
               {banners.length > 0 ? (
                 <>
                   {/* Banner Slider Container */}

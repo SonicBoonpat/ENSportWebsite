@@ -36,6 +36,11 @@ export default function EditBannerPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
+  // ----- Crop constants (mobile-first friendly) -----
+  const ASPECT_RATIO = 16 / 5; // common aspect for both mobile & desktop
+  const TARGET_WIDTH = 1600;   // export width
+  const TARGET_HEIGHT = Math.round(TARGET_WIDTH / ASPECT_RATIO); // 900 for 16:9
+
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -177,9 +182,9 @@ export default function EditBannerPage() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // ตั้งค่า canvas เป็นอัตราส่วน 16:5 ความละเอียดสูง
-    const targetWidth = 1600; // ความกว้างสูง
-    const targetHeight = 500;  // 16:5 ratio
+    // ตั้งค่า canvas เป็นอัตราส่วน 16:9 ความละเอียดสูง
+    const targetWidth = TARGET_WIDTH; // 1600
+    const targetHeight = TARGET_HEIGHT; // 900 (16:9)
 
     canvas.width = targetWidth;
     canvas.height = targetHeight;
@@ -360,7 +365,7 @@ export default function EditBannerPage() {
     if (!imageRef.current) return;
 
     const img = imageRef.current;
-    const aspectRatio = 16 / 5;
+    const aspectRatio = ASPECT_RATIO;
 
     // คำนวณขนาด crop box เริ่มต้น (80% ของความกว้าง)
     let cropWidth = img.width * 0.8;
@@ -380,12 +385,12 @@ export default function EditBannerPage() {
     });
   };
 
-  // Mouse event handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
+  // ----- Pointer Events (mouse + touch + pen) -----
+  const handlePointerDown = (e: React.PointerEvent) => {
     if (!cropData) return;
     e.preventDefault();
+    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
     setIsDragging(true);
-
     const rect = imageRef.current?.getBoundingClientRect();
     if (rect) {
       setDragStart({
@@ -395,97 +400,79 @@ export default function EditBannerPage() {
     }
   };
 
-  const handleResizeMouseDown = (e: React.MouseEvent, handle: string) => {
+  const handleResizePointerDown = (e: React.PointerEvent, handle: string) => {
     e.preventDefault();
     e.stopPropagation();
+    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
     setIsResizing(true);
     setResizeHandle(handle);
-
     const rect = imageRef.current?.getBoundingClientRect();
     if (rect) {
-      setDragStart({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-      });
+      setDragStart({ x: e.clientX - rect.left, y: e.clientY - rect.top });
     }
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handlePointerMove = (e: React.PointerEvent) => {
     if (!imageRef.current || !cropData) return;
-
     const rect = imageRef.current.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
 
     if (isResizing) {
-      const aspectRatio = 16 / 5;
       let newCropData = { ...cropData };
-
-      // คำนวณขนาดใหม่ตาม handle ที่ลาก
       switch (resizeHandle) {
-        case 'se': // มุมขวาล่าง
+        case 'se': {
           const newWidth = Math.max(50, mouseX - cropData.x);
-          const newHeight = newWidth / aspectRatio;
-
-          // จำกัดขอบเขต
+          const newHeight = newWidth / ASPECT_RATIO;
           const maxWidth = imageRef.current.width - cropData.x;
           const maxHeight = imageRef.current.height - cropData.y;
-
           if (newWidth <= maxWidth && newHeight <= maxHeight) {
             newCropData.width = newWidth;
             newCropData.height = newHeight;
           }
           break;
-
-        case 'nw': // มุมซ้ายบน
+        }
+        case 'nw': {
           const deltaX = dragStart.x - mouseX;
-          const deltaY = dragStart.y - mouseY;
           const newW = cropData.width + deltaX;
-          const newH = newW / aspectRatio;
-
-          if (newW >= 50 && cropData.x - deltaX >= 0 && cropData.y - (deltaY * newH / newW) >= 0) {
+          const newH = newW / ASPECT_RATIO;
+          if (newW >= 50 && cropData.x - deltaX >= 0 && cropData.y - (newH - cropData.height) >= 0) {
             newCropData.width = newW;
             newCropData.height = newH;
             newCropData.x = cropData.x - deltaX;
             newCropData.y = cropData.y - (newH - cropData.height);
           }
           break;
-
-        case 'ne': // มุมขวาบน
+        }
+        case 'ne': {
           const newW2 = Math.max(50, mouseX - cropData.x);
-          const newH2 = newW2 / aspectRatio;
+          const newH2 = newW2 / ASPECT_RATIO;
           const deltaY2 = cropData.height - newH2;
-
           if (newW2 <= imageRef.current.width - cropData.x && cropData.y + deltaY2 >= 0) {
             newCropData.width = newW2;
             newCropData.height = newH2;
             newCropData.y = cropData.y + deltaY2;
           }
           break;
-
-        case 'sw': // มุมซ้ายล่าง
+        }
+        case 'sw': {
           const deltaX3 = dragStart.x - mouseX;
           const newW3 = cropData.width + deltaX3;
-          const newH3 = newW3 / aspectRatio;
-
+          const newH3 = newW3 / ASPECT_RATIO;
           if (newW3 >= 50 && cropData.x - deltaX3 >= 0 && newH3 <= imageRef.current.height - cropData.y) {
             newCropData.width = newW3;
             newCropData.height = newH3;
             newCropData.x = cropData.x - deltaX3;
           }
           break;
+        }
       }
-
       setCropData(newCropData);
-
     } else if (isDragging) {
       const newX = mouseX - dragStart.x;
       const newY = mouseY - dragStart.y;
-
-      // จำกัดขอบเขต
       const maxX = imageRef.current.width - cropData.width;
       const maxY = imageRef.current.height - cropData.height;
-
       setCropData({
         ...cropData,
         x: Math.max(0, Math.min(maxX, newX)),
@@ -494,7 +481,8 @@ export default function EditBannerPage() {
     }
   };
 
-  const handleMouseUp = () => {
+  const handlePointerUp = (e: React.PointerEvent) => {
+    (e.currentTarget as Element).releasePointerCapture?.(e.pointerId);
     setIsDragging(false);
     setIsResizing(false);
     setResizeHandle('');
@@ -565,13 +553,13 @@ export default function EditBannerPage() {
             {showCropper && previewUrl && (
               <div className="space-y-4">
                 <div className="text-white/90 text-xs sm:text-sm mb-2 text-center">
-                  <strong>วิธีใช้:</strong> ลากกรอบเพื่อเลื่อน | ลากมุม <span className="text-red-300">สีแดง</span> เพื่อปรับขนาด (อัตราส่วน 16:5)
+                  <strong>วิธีใช้:</strong> ลากกรอบเพื่อเลื่อน | ลากมุม <span className="text-red-300">สีแดง</span> เพื่อปรับขนาด (อัตราส่วน 16:9)
                 </div>
                 <div
-                  className="relative bg-black rounded-lg overflow-hidden select-none"
-                  onMouseMove={handleMouseMove}
-                  onMouseUp={handleMouseUp}
-                  onMouseLeave={handleMouseUp}
+                  className="relative bg-black rounded-lg overflow-hidden select-none touch-none"
+                  onPointerMove={handlePointerMove}
+                  onPointerUp={handlePointerUp}
+                  onPointerLeave={handlePointerUp}
                 >
                   <img
                     ref={imageRef}
@@ -597,7 +585,7 @@ export default function EditBannerPage() {
                     <div
                       className={`absolute border-2 ${isDragging ? 'border-amber-400' : isResizing ? 'border-red-400' : 'border-white'} transition-colors duration-150`}
                       style={{ left: cropData.x, top: cropData.y, width: cropData.width, height: cropData.height, cursor: isDragging ? 'grabbing' : 'grab' }}
-                      onMouseDown={handleMouseDown}
+                      onPointerDown={handlePointerDown}
                     >
                       {/* Grid lines */}
                       <div className="absolute top-0 bottom-0 border-l border-white/50" style={{ left: '33.333%' }} />
@@ -606,14 +594,14 @@ export default function EditBannerPage() {
                       <div className="absolute left-0 right-0 border-t border-white/50" style={{ top: '66.666%' }} />
 
                       {/* Corner handles (red theme) */}
-                      <div className="absolute -top-2 -left-2 w-4 h-4 bg-white border-2 border-red-500 rounded-full cursor-nw-resize hover:bg-red-100" onMouseDown={(e) => handleResizeMouseDown(e, 'nw')} />
-                      <div className="absolute -top-2 -right-2 w-4 h-4 bg-white border-2 border-red-500 rounded-full cursor-ne-resize hover:bg-red-100" onMouseDown={(e) => handleResizeMouseDown(e, 'ne')} />
-                      <div className="absolute -bottom-2 -left-2 w-4 h-4 bg-white border-2 border-red-500 rounded-full cursor-sw-resize hover:bg-red-100" onMouseDown={(e) => handleResizeMouseDown(e, 'sw')} />
-                      <div className="absolute -bottom-2 -right-2 w-4 h-4 bg-white border-2 border-red-500 rounded-full cursor-se-resize hover:bg-red-100" onMouseDown={(e) => handleResizeMouseDown(e, 'se')} />
+                      <div className="absolute -top-2 -left-2 w-4 h-4 bg-white border-2 border-red-500 rounded-full cursor-nw-resize hover:bg-red-100" onPointerDown={(e) => handleResizePointerDown(e, 'nw')} />
+                      <div className="absolute -top-2 -right-2 w-4 h-4 bg-white border-2 border-red-500 rounded-full cursor-ne-resize hover:bg-red-100" onPointerDown={(e) => handleResizePointerDown(e, 'ne')} />
+                      <div className="absolute -bottom-2 -left-2 w-4 h-4 bg-white border-2 border-red-500 rounded-full cursor-sw-resize hover:bg-red-100" onPointerDown={(e) => handleResizePointerDown(e, 'sw')} />
+                      <div className="absolute -bottom-2 -right-2 w-4 h-4 bg-white border-2 border-red-500 rounded-full cursor-se-resize hover:bg-red-100" onPointerDown={(e) => handleResizePointerDown(e, 'se')} />
 
                       {/* Ratio indicator */}
                       <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-black/80 text-white text-xs px-2 py-1 rounded">
-                        16:5 {isResizing && '(Resizing)'}
+                        16:9 {isResizing && '(Resizing)'}
                       </div>
                     </div>
                   )}
