@@ -38,6 +38,10 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [banners, setBanners] = useState<Array<{id: string, url: string, filename: string}>>([]);
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
+  const [autoSlideEnabled, setAutoSlideEnabled] = useState(true);
+  const autoSlideRef = useRef<NodeJS.Timeout | null>(null);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10); // แสดง 10 รายการต่อหน้า
@@ -301,22 +305,49 @@ function App() {
     }
   };
 
-  // Auto-slide banners ทุก 10 วินาที
-  useEffect(() => {
-    if (banners.length <= 1) return;
+  // ฟังก์ชันสำหรับเริ่ม auto-slide ใหม่
+  const startAutoSlide = () => {
+    if (autoSlideRef.current) {
+      clearInterval(autoSlideRef.current);
+    }
+    
+    if (banners.length <= 1 || !autoSlideEnabled) return;
 
-    const interval = setInterval(() => {
+    autoSlideRef.current = setInterval(() => {
       setCurrentBannerIndex((prevIndex) => 
         prevIndex === banners.length - 1 ? 0 : prevIndex + 1
       );
     }, 10000); // 10 วินาที
+  };
 
-    return () => clearInterval(interval);
-  }, [banners.length]);
+  // ฟังก์ชันสำหรับหยุด auto-slide ชั่วคราว
+  const pauseAutoSlide = () => {
+    if (autoSlideRef.current) {
+      clearInterval(autoSlideRef.current);
+      autoSlideRef.current = null;
+    }
+    
+    // รีเซ็ต auto-slide หลังจาก 15 วินาที (ให้ผู้ใช้มีเวลาดู Banner)
+    setTimeout(() => {
+      startAutoSlide();
+    }, 15000);
+  };
+
+  // Auto-slide banners
+  useEffect(() => {
+    startAutoSlide();
+    
+    return () => {
+      if (autoSlideRef.current) {
+        clearInterval(autoSlideRef.current);
+      }
+    };
+  }, [banners.length, autoSlideEnabled]);
 
   // ฟังก์ชันสำหรับกดจุดเปลี่ยน Banner
   const goToBanner = (index: number) => {
     setCurrentBannerIndex(index);
+    pauseAutoSlide(); // รีเซ็ต cooldown เมื่อผู้ใช้เลือกเอง
   };
 
   // ฟังก์ชันสำหรับเลื่อนไปข้างหน้า
@@ -324,6 +355,7 @@ function App() {
     setCurrentBannerIndex((prev) => 
       prev === banners.length - 1 ? 0 : prev + 1
     );
+    pauseAutoSlide(); // รีเซ็ต cooldown เมื่อผู้ใช้กดเอง
   };
 
   // ฟังก์ชันสำหรับเลื่อนไปข้างหลัง
@@ -331,6 +363,32 @@ function App() {
     setCurrentBannerIndex((prev) => 
       prev === 0 ? banners.length - 1 : prev - 1
     );
+    pauseAutoSlide(); // รีเซ็ต cooldown เมื่อผู้ใช้กดเอง
+  };
+
+  // Touch/Swipe handlers สำหรับมือถือ
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (isLeftSwipe && banners.length > 1) {
+      nextBanner(); // Swipe left = next banner
+    }
+    if (isRightSwipe && banners.length > 1) {
+      prevBanner(); // Swipe right = previous banner
+    }
   };
 
   // Effect สำหรับ search และ sorting
@@ -406,10 +464,10 @@ function App() {
       if (banners.length > 1 && !selectedMatch) {
         if (e.key === 'ArrowLeft') {
           e.preventDefault();
-          prevBanner();
+          prevBanner(); // จะเรียก pauseAutoSlide() อัตโนมัติ
         } else if (e.key === 'ArrowRight') {
           e.preventDefault();
-          nextBanner();
+          nextBanner(); // จะเรียก pauseAutoSlide() อัตโนมัติ
         }
       }
     }
@@ -423,7 +481,12 @@ function App() {
         <Navbar />
         <section>
           <div className='mx-6 text-center text-white'>
-            <div className='bg-red-en mb-4 rounded-[8px] w-full aspect-[16/5] shadow-white shadow-md/20 overflow-hidden relative'>
+            <div 
+              className='bg-red-en mb-4 rounded-[8px] w-full aspect-[16/5] shadow-white shadow-md/20 overflow-hidden relative'
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+            >
               {banners.length > 0 ? (
                 <>
                   {/* Banner Slider Container */}
