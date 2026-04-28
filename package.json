@@ -28,7 +28,7 @@
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
-    "next": "15.5.2",
+    "next": "15.5.9",
     "next-auth": "^4.24.11",
     "next-connect": "^1.0.0",
     "prisma": "^6.16.0",
